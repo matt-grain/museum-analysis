@@ -197,12 +197,20 @@ this out explicitly; so does the project spec. Requirements:
 - Apply migrations: `uv run alembic upgrade head`.
 - Downgrade one step: `uv run alembic downgrade -1`.
 
-### `docker compose`
+### `docker compose` — run via WSL on this machine
 
-- Validate the compose file without starting: `docker compose config`.
-- Build and start everything: `docker compose up --build`.
-- Tail a service's logs: `docker compose logs -f api`.
-- Stop and clean up: `docker compose down`. Add `-v` to wipe volumes.
+Docker Desktop here is not exposed directly to Git Bash. **All `docker`
+and `docker compose` commands must be run through WSL**:
+
+- Validate: `wsl docker compose -f docker/docker-compose.yml config`.
+- Start the db only (for local tests/migrations): `wsl docker compose -f docker/docker-compose.yml up -d db`.
+- Start everything: `wsl docker compose -f docker/docker-compose.yml up --build`.
+- Tail logs: `wsl docker compose -f docker/docker-compose.yml logs -f api`.
+- Stop + clean: `wsl docker compose -f docker/docker-compose.yml down`. Add `-v` to wipe volumes.
+- Shell into the db container: `wsl docker exec -it <container-name> bash`.
+
+The docker daemon lives inside WSL; running `docker` from Git Bash fails
+because the Windows socket isn't shared. Always prefix with `wsl `.
 
 ## Tooling gate (run before asking Matt for /check)
 

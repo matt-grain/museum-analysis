@@ -17,10 +17,9 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# TODO Phase 2: import Base.metadata and assign to target_metadata
-# from museums.models.base import Base
-# target_metadata = Base.metadata
-target_metadata = None
+from museums.models import Base
+
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
