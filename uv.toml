@@ -1,0 +1,5 @@
+# Force a project-local virtual environment, decoupled from the parent workspace.
+# The parent workspace (C:\Projects\Interviews) is a job-search tool and
+# shares its venv with all workspace members; this project needs its own
+# isolated environment for reproducible builds and clean pre-commit hooks.
+managed = true

@@ -1,0 +1,82 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.5
+    hooks:
+      - id: ruff
+        args: [--fix]
+        exclude: ^(prototype/|notebook/)
+      - id: ruff-format
+        exclude: ^(prototype/|notebook/)
+
+  - repo: local
+    hooks:
+      # --- pre-commit (fast) ---
+      - id: pyright
+        name: pyright (strict type check)
+        entry: uv run --no-sync pyright .
+        language: system
+        types: [python]
+        pass_filenames: false
+
+      # --- pre-push (thorough) ---
+      - id: pytest
+        name: pytest
+        entry: uv run --no-sync pytest -x -q
+        language: system
+        types: [python]
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: import-linter
+        name: import-linter (layer contracts)
+        entry: uv run --no-sync lint-imports
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: radon-cc
+        name: radon (cyclomatic complexity)
+        entry: uv run --no-sync radon cc src/ -a -nc
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      - id: vulture
+        name: vulture (dead code)
+        entry: uv run --no-sync vulture src/ tools/vulture_whitelist.py --min-confidence 80
+        language: system
+        pass_filenames: false
+        stages: [pre-push]
+
+      # --- Custom architectural checks (pre-push) ---
+      - id: check-file-length
+        name: check file/function length limits
+        entry: uv run --no-sync python tools/pre_commit_checks/check_file_length.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]
+
+      - id: check-datetime-patterns
+        name: check datetime patterns (tz-aware)
+        entry: uv run --no-sync python tools/pre_commit_checks/check_datetime_patterns.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]
+
+      - id: check-no-httpexception-outside-handlers
+        name: check HTTPException only in main.py / exception_handlers
+        entry: uv run --no-sync python tools/pre_commit_checks/check_no_httpexception_outside_handlers.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]
+
+      - id: check-no-sync-http-in-src
+        name: check no sync HTTP (requests/urllib) in src
+        entry: uv run --no-sync python tools/pre_commit_checks/check_no_sync_http_in_src.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]

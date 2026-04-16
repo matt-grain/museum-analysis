@@ -1,0 +1,9 @@
+FROM jupyter/minimal-notebook:python-3.11
+
+USER root
+RUN pip install --no-cache-dir requests matplotlib pandas numpy
+
+USER jovyan
+WORKDIR /home/jovyan/work
+
+CMD ["start-notebook.sh", "--NotebookApp.token=''", "--NotebookApp.password=''"]

@@ -1,0 +1,157 @@
+[project]
+name = "museums"
+version = "0.1.0"
+description = "Museum visitors vs. city population — FastAPI service"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "alembic>=1.18.4",
+    "asyncpg>=0.31.0",
+    "fastapi>=0.135.1",
+    "httpx>=0.28.1",
+    "mwparserfromhell>=0.7.2",
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.13.1",
+    "scikit-learn>=1.8.0",
+    "sqlalchemy[asyncio]>=2.0",
+    "structlog>=25.5.0",
+    "tenacity>=9.1.4",
+    "uvicorn[standard]>=0.40.0",
+]
+
+[dependency-groups]
+dev = [
+    "bandit>=1.9.4",
+    "import-linter>=2.11",
+    "pre-commit>=4.5.1",
+    "pyright>=1.1.408",
+    "pytest>=9.0.3",
+    "pytest-asyncio>=1.3.0",
+    "radon>=6.0.1",
+    "respx>=0.23.1",
+    "ruff>=0.15.5",
+    "vulture>=2.16",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/museums"]
+
+[tool.pyright]
+pythonVersion = "3.13"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+include = ["src", "tests", "tools"]
+exclude = ["prototype", "notebook", "**/__pycache__", ".venv", "alembic/versions"]
+# venv path is configured in pyrightconfig.json (absolute path to workspace venv)
+
+[tool.ruff]
+line-length = 120
+target-version = "py313"
+exclude = ["prototype/", "notebook/"]
+
+[tool.ruff.lint]
+select = [
+    "E",     # pycodestyle errors
+    "W",     # pycodestyle warnings
+    "F",     # pyflakes
+    "I",     # isort
+    "N",     # pep8-naming
+    "UP",    # pyupgrade
+    "B",     # flake8-bugbear
+    "SIM",   # flake8-simplify
+    "S",     # flake8-bandit (security)
+    "A",     # flake8-builtins
+    "C4",    # flake8-comprehensions
+    "DTZ",   # flake8-datetimez
+    "RET",   # flake8-return
+    "PTH",   # flake8-use-pathlib
+    "ERA",   # eradicate (dead code)
+    "RUF",   # ruff-specific
+    "ASYNC", # flake8-async
+    "T20",   # flake8-print (no print statements)
+]
+ignore = [
+    "S101",  # allow assert in tests
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101", "S105", "S106"]
+"tools/**/*.py" = ["T20"]  # allow print in pre-commit scripts
+"alembic/**/*.py" = ["ERA001"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["museums"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-p no:logfire"
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]
+
+[tool.importlinter]
+root_packages = ["museums"]
+include_paths = ["src"]
+include_external_packages = true
+
+[[tool.importlinter.contracts]]
+name = "Routers cannot import repositories, models, or clients"
+type = "forbidden"
+source_modules = ["museums.routers"]
+forbidden_modules = [
+    "museums.repositories",
+    "museums.models",
+    "museums.clients",
+]
+
+[[tool.importlinter.contracts]]
+name = "Services cannot import routers, workflows, or clients"
+type = "forbidden"
+source_modules = ["museums.services"]
+forbidden_modules = [
+    "museums.routers",
+    "museums.workflows",
+    "museums.clients",
+]
+
+[[tool.importlinter.contracts]]
+# Services must not import SQLAlchemy directly — workflows own the session.
+# We ban the top-level sqlalchemy package; legitimate use (e.g., column types)
+# is permitted at the repository layer only.
+name = "Services cannot import sqlalchemy (workflows own the session)"
+type = "forbidden"
+source_modules = ["museums.services"]
+forbidden_modules = ["sqlalchemy"]
+
+[[tool.importlinter.contracts]]
+name = "Repositories cannot import services, routers, workflows, or clients"
+type = "forbidden"
+source_modules = ["museums.repositories"]
+forbidden_modules = [
+    "museums.services",
+    "museums.routers",
+    "museums.workflows",
+    "museums.clients",
+]
+
+[[tool.importlinter.contracts]]
+name = "Clients cannot import museums modules except config, exceptions, and http_client"
+type = "forbidden"
+source_modules = ["museums.clients"]
+forbidden_modules = [
+    "museums.routers",
+    "museums.services",
+    "museums.workflows",
+    "museums.repositories",
+    "museums.models",
+    "museums.schemas",
+    "museums.dependencies",
+]

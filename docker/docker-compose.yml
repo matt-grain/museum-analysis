@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: museums
+      POSTGRES_PASSWORD: museums
+      POSTGRES_DB: museums
+    volumes:
+      - museums_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U museums"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: ../.env
+    ports:
+      - "8000:8000"
+    command: >
+      sh -c "uv run alembic upgrade head && uv run uvicorn museums.main:app --host 0.0.0.0 --port 8000"
+
+  notebook:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.notebook
+    depends_on:
+      - api
+    ports:
+      - "8888:8888"
+    volumes:
+      - ../notebook:/home/jovyan/work
+    environment:
+      MUSEUMS_API_URL: http://api:8000
+
+volumes:
+  museums_pgdata:

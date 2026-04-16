@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__anima__memory",
+      "Read(//c/Projects/Interviews/jobs/Sanofi-AI-ML-Lead/homework/**)",
+      "Read(//c/Projects/Interviews/jobs/Sanofi-AI-ML-Lead/homework/tools/**)",
+      "Bash(uv init *)",
+      "Bash(uv add *)",
+      "Bash(uv remove *)",
+      "Bash(uv sync *)",
+      "Bash(.venv/Scripts/pytest.exe -v)",
+      "Bash(uv venv *)",
+      "Bash(UV_PROJECT_ENVIRONMENT=.venv uv sync)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/pytest.exe\" -v)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/pytest.exe\" -v -p no:logfire)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/python.exe\" -c \"import logfire\")",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/pyright.exe\" src/ tests/)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/ruff.exe\" check *)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/ruff.exe\" format *)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/lint-imports.exe\")",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/lint-imports.exe\" --help)",
+      "Bash(python -c \"import importlinter; print\\(importlinter.__version__\\)\")",
+      "Bash(C:/Projects/Interviews/.venv/Scripts/python.exe *)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/python.exe\" tools/pre_commit_checks/check_file_length.py)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/python.exe\" tools/pre_commit_checks/check_datetime_patterns.py)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/python.exe\" tools/pre_commit_checks/check_no_httpexception_outside_handlers.py)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/python.exe\" tools/pre_commit_checks/check_no_sync_http_in_src.py)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/pre-commit.exe\" install *)",
+      "Bash(\"C:/Projects/Interviews/.venv/Scripts/pre-commit.exe\" run *)",
+      "Bash(UV_PROJECT_ENVIRONMENT=\".venv\" uv sync)",
+      "Bash(tasklist)",
+      "Bash(git init *)",
+      "Bash(git remote *)",
+      "Bash(git add *)",
+      "Bash(git reset *)",
+      "Bash(git config *)",
+      "Bash(git branch *)",
+      "Bash(git commit *)"
+    ]
+  }
+}
