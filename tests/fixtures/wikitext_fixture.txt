@@ -1,0 +1,28 @@
+== Most visited museums ==
+{| class="wikitable sortable"
+|-
+! Museum !! Location !! Country !! Visitors (latest)
+|-
+| [[Louvre]] || [[Paris]] || [[France]] || 8,900,000
+|-
+| [[British Museum]] || [[London]] || [[United Kingdom]] || 5,820,860
+|-
+| [[Metropolitan Museum of Art]] || [[New York City]] || [[United States]] || 5,360,000
+|-
+| [[Vatican Museums]] || [[Vatican City]] || [[Vatican City|Holy See]] || 6,883,000
+|-
+| [[National Museum of Natural History (United States)|National Museum of Natural History]] || [[Washington, D.C.]] || [[United States]] || 4,200,000
+|-
+| [[Smithsonian National Air and Space Museum|National Air and Space Museum]] || [[Washington, D.C.]] || [[United States]] || 4,000,000
+|-
+| [[National Gallery (London)|National Gallery]] || [[London]] || [[United Kingdom]] || 2,700,000
+|-
+| [[Tate Modern]] || [[London]] || [[United Kingdom]] || 2,510,000
+|-
+| [[Uffizi]] || [[Florence]] || [[Italy]] || 2,388,000
+|-
+| [[American Museum of Natural History]] || [[New York City]] || [[United States]] || 2,345,000
+|-
+| [[National Palace Museum]] || [[Taipei]] || [[Taiwan]] || 2,325,000
+|-
+|}

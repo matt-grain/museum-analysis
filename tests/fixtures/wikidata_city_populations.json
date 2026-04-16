@@ -1,0 +1,29 @@
+{
+  "head": {
+    "vars": ["city", "population", "year"]
+  },
+  "results": {
+    "bindings": [
+      {
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q90"},
+        "population": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "2161000"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2019"}
+      },
+      {
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q90"},
+        "population": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "2145906"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2023"}
+      },
+      {
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q84"},
+        "population": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "8908081"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2019"}
+      },
+      {
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q84"},
+        "population": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "8799800"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2022"}
+      }
+    ]
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "head": {
+    "vars": ["museum", "museumLabel", "city", "cityLabel", "country", "countryLabel", "title", "visitors", "year"]
+  },
+  "results": {
+    "bindings": [
+      {
+        "museum": {"type": "uri", "value": "http://www.wikidata.org/entity/Q19675"},
+        "museumLabel": {"type": "literal", "value": "Louvre"},
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q90"},
+        "cityLabel": {"type": "literal", "value": "Paris"},
+        "country": {"type": "uri", "value": "http://www.wikidata.org/entity/Q142"},
+        "countryLabel": {"type": "literal", "value": "France"},
+        "title": {"type": "literal", "xml:lang": "en", "value": "Louvre"},
+        "visitors": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "8900000"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2023"}
+      },
+      {
+        "museum": {"type": "uri", "value": "http://www.wikidata.org/entity/Q19675"},
+        "museumLabel": {"type": "literal", "value": "Louvre"},
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q90"},
+        "cityLabel": {"type": "literal", "value": "Paris"},
+        "country": {"type": "uri", "value": "http://www.wikidata.org/entity/Q142"},
+        "countryLabel": {"type": "literal", "value": "France"},
+        "title": {"type": "literal", "xml:lang": "en", "value": "Louvre"},
+        "visitors": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "9600000"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2019"}
+      },
+      {
+        "museum": {"type": "uri", "value": "http://www.wikidata.org/entity/Q6373"},
+        "museumLabel": {"type": "literal", "value": "British Museum"},
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q84"},
+        "cityLabel": {"type": "literal", "value": "London"},
+        "country": {"type": "uri", "value": "http://www.wikidata.org/entity/Q145"},
+        "countryLabel": {"type": "literal", "value": "United Kingdom"},
+        "title": {"type": "literal", "xml:lang": "en", "value": "British Museum"},
+        "visitors": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "5820860"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2023"}
+      },
+      {
+        "museum": {"type": "uri", "value": "http://www.wikidata.org/entity/Q6373"},
+        "museumLabel": {"type": "literal", "value": "British Museum"},
+        "city": {"type": "uri", "value": "http://www.wikidata.org/entity/Q84"},
+        "cityLabel": {"type": "literal", "value": "London"},
+        "country": {"type": "uri", "value": "http://www.wikidata.org/entity/Q145"},
+        "countryLabel": {"type": "literal", "value": "United Kingdom"},
+        "title": {"type": "literal", "xml:lang": "en", "value": "British Museum"},
+        "visitors": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#decimal", "value": "6839000"},
+        "year": {"type": "literal", "datatype": "http://www.w3.org/2001/XMLSchema#integer", "value": "2018"}
+      }
+    ]
+  }
+}

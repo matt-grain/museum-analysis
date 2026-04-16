@@ -42,7 +42,10 @@
       "Bash(wsl docker *)",
       "Bash(wsl pg_isready -h 172.18.0.2 -p 5432 -U museums)",
       "Bash(MUSEUMS_DATABASE_URL=\"postgresql+asyncpg://museums:museums@localhost:5432/museums\" uv run alembic upgrade head)",
-      "Bash(MUSEUMS_DATABASE_URL=\"postgresql+asyncpg://museums:museums@localhost:5432/museums_test\" uv run alembic upgrade head)"
+      "Bash(MUSEUMS_DATABASE_URL=\"postgresql+asyncpg://museums:museums@localhost:5432/museums_test\" uv run alembic upgrade head)",
+      "Bash(wsl *)",
+      "Bash(wsl.exe bash *)",
+      "Bash(python -c ' *)"
     ]
   }
 }

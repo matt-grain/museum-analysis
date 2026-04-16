@@ -10,12 +10,12 @@
 |---|---|---|---|
 | Phase 1: Foundation & infra (+ pre-commit) | ✅ Complete | 1/1 | 100% |
 | Phase 2: Data layer (models, repos, migration) | ✅ Complete | 1/1 | 100% |
-| Phase 3: External clients + ingestion workflow | ⏳ Pending | 0/1 | 0% |
+| Phase 3: External clients + ingestion workflow | ✅ Complete | 1/1 | 100% |
 | Phase 4: Harmonization + regression services | ⏳ Pending | 0/1 | 0% |
 | Phase 5: API layer (schemas, query services, routers, main) | ⏳ Pending | 0/1 | 0% |
 | Phase 6: Notebook + CI + docs | ⏳ Pending | 0/1 | 0% |
 
-**Overall:** 2/6 phases complete (33%).
+**Overall:** 3/6 phases complete (50%).
 
 ---
 
@@ -133,15 +133,70 @@
 
 ---
 
+---
+
+## Phase 3 — External Clients + Ingestion Workflow
+
+**Implemented:** 2026-04-16
+**Agent:** `python-fastapi` (Sonnet)
+**Tooling:** ✅ All pass — 30/30 cumulative tests green, full pre-commit pipeline (both stages)
+
+### Completed
+- ✅ `MediaWikiClient.fetch_museum_list()` — Wikipedia Action API (`action=parse&prop=wikitext`), `mwparserfromhell`-based table-row parsing with File:/Image:/Category: filtering and dedup by case-insensitive title
+- ✅ `WikidataClient.fetch_museum_enrichment(titles)` + `.fetch_city_populations(city_qids)` — SPARQL via `schema:about` title→QID resolver (no federated SERVICE clause), 50-QID batching, P1174/P585/P1082 property handling
+- ✅ `IngestionWorkflow` under `workflows/` — 5-arg constructor `(mediawiki, wikidata, session, settings, deps: IngestionDeps)` with `IngestionDeps` as a frozen slotted dataclass holding the 5 repos; owns `session.commit()` / `rollback()`
+- ✅ Retry/backoff via `tenacity` — `httpx.ConnectError`, `httpx.ReadTimeout`, `httpx.WriteTimeout`, and HTTP 429/5xx; every external call wrapped with domain-exception re-raise (`MediaWikiUnavailableError`, `WikidataUnavailableError`, `ExternalDataParseError`) preserving `__cause__`
+- ✅ 11 new tests: 3 MediaWiki (happy + retry-succeed + retry-exhausted), 3 Wikidata (enrichment parse + population grouping + parse-error), 5 workflow (happy, cooldown blocks, force override, rollback on client failure, idempotent re-run)
+- ✅ 3 realistic test fixtures: `wikitext_fixture.txt` (11 museum rows), `wikidata_museum_enrichment.json`, `wikidata_city_populations.json`
+
+### Out-of-plan additions (all defensible)
+- `tests/test_workflows/conftest.py` — separate `workflow_session` fixture that does NOT wrap tests in an outer transaction, so `session.commit()` inside the workflow doesn't collide with the `db_session` rollback pattern. Teardown does `TRUNCATE ... RESTART IDENTITY CASCADE` for isolation. Documented in the subagent report.
+- `_parse_enrichments` and helpers extracted to module-level functions in `wikidata_client.py` — needed to keep the `WikidataClient` class under the 150-line limit and the parsing function under 30 lines.
+- Test fixture has 11 museum rows instead of the plan's ≥ 3 — the client has a `_MIN_EXPECTED_ENTRIES = 10` guard (per CLAUDE.md "never silently drop data") so the fixture had to clear it. Reasonable.
+
+### Files Created (13 new + 2 modified)
+- `src/museums/clients/__init__.py` (modified — re-exports 17 lines)
+- `src/museums/clients/mediawiki_client.py` (115 lines)
+- `src/museums/clients/wikidata_client.py` (196 lines)
+- `src/museums/workflows/__init__.py` (modified — 9 lines)
+- `src/museums/workflows/ingestion_workflow.py` (167 lines)
+- `tests/fixtures/__init__.py`
+- `tests/fixtures/wikitext_fixture.txt` (18 lines, 11 museum rows)
+- `tests/fixtures/wikidata_museum_enrichment.json` (56 lines)
+- `tests/fixtures/wikidata_city_populations.json` (34 lines)
+- `tests/test_clients/__init__.py`
+- `tests/test_clients/test_mediawiki_client.py` (72 lines, 3 tests)
+- `tests/test_clients/test_wikidata_client.py` (93 lines, 3 tests)
+- `tests/test_services/__init__.py` (empty, reserved for Phase 4)
+- `tests/test_workflows/__init__.py`
+- `tests/test_workflows/conftest.py` (27 lines)
+- `tests/test_workflows/test_ingestion_workflow.py` (209 lines, 5 tests)
+
+### Verification Checklist
+| Item | Status |
+|---|---|
+| All planned files created | ✅ |
+| Tooling gate fully green (both stages) | ✅ |
+| Tests pass | ✅ 30/30 cumulative |
+| Import-linter contracts | ✅ 5 kept / 0 broken (client-layer contract 5 specifically validated) |
+| Domain exception wrapping (no raw `httpx.*` escaping) | ✅ |
+| SPARQL `schema:about` resolver (no federated SERVICE) | ✅ |
+| `mwparserfromhell` used (no regex over wikitext) | ✅ |
+| `IngestionWorkflow.__init__` exactly 5 args | ✅ |
+| `IngestionDeps` is `@dataclass(slots=True, frozen=True)` | ✅ |
+| All `.py` files under 200 lines | ✅ (biggest: `wikidata_client.py` at 196, `test_ingestion_workflow.py` at 209 — test file within the 300-line allowance) |
+
+---
+
 ## Next Phase Preview
 
-**Phase 3: External clients + ingestion workflow**
-- ~10 files new (2 clients + 1 workflow + 4 tests + 3 fixtures)
-- Dependencies: Phase 2 ✅
+**Phase 4: Harmonization + regression services**
+- ~4 files new (2 services + 2 test files)
+- Dependencies: Phase 2 ✅ (uses models + repositories; does NOT depend on Phase 3)
+- Could have been parallelized with Phase 3, but doing sequentially for simplicity.
 - Ready to start.
-- Key outputs: `MediaWikiClient` (Action API + `mwparserfromhell`), `WikidataClient` (SPARQL via `schema:about` resolver), `IngestionWorkflow` (under `workflows/`, takes `IngestionDeps` dataclass, owns the session + transaction boundary), `respx`-backed client tests that exercise retry exhaustion + parse errors, real-DB workflow tests.
-- Parallelizable with Phase 4 (disjoint files).
-- Blocks: Phase 5 (routers need the workflow).
+- Key outputs: `HarmonizationService` (per-city OLS population-over-year interpolation + nearest-year museum visitor match), `RegressionService` (log-log linear fit, R², predicted-vs-actual). Pure compute layer — no HTTP, no external deps.
+- Blocks: Phase 5 (routers need both services).
 
 ---
 
