@@ -45,7 +45,9 @@
       "Bash(MUSEUMS_DATABASE_URL=\"postgresql+asyncpg://museums:museums@localhost:5432/museums_test\" uv run alembic upgrade head)",
       "Bash(wsl *)",
       "Bash(wsl.exe bash *)",
-      "Bash(python -c ' *)"
+      "Bash(python -c ' *)",
+      "Bash(python -c \"import importlinter.contracts.forbidden; help\\(importlinter.contracts.forbidden.ForbiddenContract\\)\")",
+      "Bash(python tools/check_lengths.py)"
     ]
   }
 }

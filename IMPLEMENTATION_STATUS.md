@@ -11,11 +11,11 @@
 | Phase 1: Foundation & infra (+ pre-commit) | ✅ Complete | 1/1 | 100% |
 | Phase 2: Data layer (models, repos, migration) | ✅ Complete | 1/1 | 100% |
 | Phase 3: External clients + ingestion workflow | ✅ Complete | 1/1 | 100% |
-| Phase 4: Harmonization + regression services | ⏳ Pending | 0/1 | 0% |
+| Phase 4: Harmonization + regression services | ✅ Complete | 1/1 | 100% |
 | Phase 5: API layer (schemas, query services, routers, main) | ⏳ Pending | 0/1 | 0% |
 | Phase 6: Notebook + CI + docs | ⏳ Pending | 0/1 | 0% |
 
-**Overall:** 3/6 phases complete (50%).
+**Overall:** 4/6 phases complete (67%).
 
 ---
 
@@ -188,15 +188,53 @@
 
 ---
 
+---
+
+## Phase 4 — Harmonization + Regression Services
+
+**Implemented:** 2026-04-16
+**Agent:** `python-fastapi` (Sonnet)
+**Tooling:** ✅ All pass — 43/43 cumulative tests green, full pre-commit pipeline (both stages)
+
+### Completed
+- ✅ `HarmonizationService` — per-city OLS `population ~ year` fit via `numpy.polyfit` (degree 1); ≥ 2 population-records required for fit, single-point fallback within ±2 years, skip otherwise with WARNING log; museum visitor-record selection by `(-year, -visitors)` sort (nearest-to-today, tie-break on max visitors); extrapolation flag set when visitor year outside fit range
+- ✅ `RegressionService` — log-log `LinearRegression.fit()` via sklearn; raises `InsufficientDataError` when fewer than 5 harmonized rows or any non-positive values; returns `RegressionResult` with coefficient (elasticity), intercept, R², `n_samples`, `fitted_at` (tz-aware), and per-row `RegressionPoint` with residuals
+- ✅ 13 new tests: 8 harmonization (real Postgres via `db_session` + factories) + 5 regression (pure in-memory via `_FakeHarmonization` stub)
+
+### Design decisions (Sonnet's notes, all sound)
+1. **`allow_indirect_imports = "True"`** added to the "Services cannot import sqlalchemy" import-linter contract. Without it, the contract forbade transitive imports through repositories — which would block services from consuming repos at all. This narrows the rule to its stated purpose: direct `from sqlalchemy import ...` in service files only. Documented in-place in `pyproject.toml`.
+2. **sklearn typing via `Any`-annotated instance** — sklearn stubs are incomplete; annotating `LinearRegression()` as `Any` lets pyright accept `.fit()` / `.score()` / `.predict()` / `.coef_` / `.intercept_`. Return values cast explicitly with `float(...)` to narrow back to concrete types.
+3. **`_FitResult(frozen=True)` dataclass** in `regression_service.py` — cleaner than a 3-tuple with mixed `Any`/float members when passing model coefficients between helpers.
+4. **`InsufficientDataError` scoped to regression only, not harmonization** — the plan's "raise if non-empty input, empty output" wording conflicted with the test spec expecting `[]` silently when museums are skipped. Sonnet followed the tests (more specific). The empty-result → 422 mapping belongs in Phase 5's exception handler.
+
+### Files Created (4 new + 1 modified)
+- `src/museums/services/harmonization_service.py` (172 lines)
+- `src/museums/services/regression_service.py` (123 lines)
+- `tests/test_services/test_harmonization_service.py` (164 lines, 8 tests)
+- `tests/test_services/test_regression_service.py` (123 lines, 5 tests)
+- `pyproject.toml` — one-line `allow_indirect_imports = "True"` addition on the sqlalchemy contract (with updated justification comment)
+
+### Verification Checklist
+| Item | Status |
+|---|---|
+| All planned files created | ✅ |
+| Tooling gate fully green (both stages) | ✅ |
+| Tests pass | ✅ 43/43 cumulative |
+| Import-linter contracts | ✅ 5 kept / 0 broken |
+| Service-to-service dependency (Regression → Harmonization) documented | ✅ (goes in `decisions.md` in Phase 6) |
+| All `.py` files under 200 lines | ✅ (biggest: `harmonization_service.py` at 172) |
+| No TODO/FIXME without tracker ref | ✅ |
+
+---
+
 ## Next Phase Preview
 
-**Phase 4: Harmonization + regression services**
-- ~4 files new (2 services + 2 test files)
-- Dependencies: Phase 2 ✅ (uses models + repositories; does NOT depend on Phase 3)
-- Could have been parallelized with Phase 3, but doing sequentially for simplicity.
+**Phase 5: API layer (schemas, query services, routers, main)**
+- ~22 files new: 7 schemas + 2 query services (MuseumQueryService + CityQueryService to keep routers off repositories) + 6 routers + dependencies.py + main.py completion + 7 test files
+- Dependencies: Phase 3 ✅ AND Phase 4 ✅
 - Ready to start.
-- Key outputs: `HarmonizationService` (per-city OLS population-over-year interpolation + nearest-year museum visitor match), `RegressionService` (log-log linear fit, R², predicted-vs-actual). Pure compute layer — no HTTP, no external deps.
-- Blocks: Phase 5 (routers need both services).
+- Key outputs: full HTTP surface (`/health`, `POST /refresh`, `GET /museums`, `GET /cities/populations`, `GET /harmonized`, `GET /regression`), Pydantic response schemas, DI chains, global exception handlers mapping domain errors → HTTP status codes.
+- Blocks: Phase 6 (notebook calls the API).
 
 ---
 

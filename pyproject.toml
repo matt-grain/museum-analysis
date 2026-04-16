@@ -126,12 +126,15 @@ forbidden_modules = [
 
 [[tool.importlinter.contracts]]
 # Services must not import SQLAlchemy directly — workflows own the session.
-# We ban the top-level sqlalchemy package; legitimate use (e.g., column types)
-# is permitted at the repository layer only.
+# Repositories use SQLAlchemy internally (that is their responsibility), so
+# indirect imports through repos are expected and permitted.
+# allow_indirect_imports ensures only direct "from sqlalchemy..." in a service
+# file is flagged, not transitive paths through the repository layer.
 name = "Services cannot import sqlalchemy (workflows own the session)"
 type = "forbidden"
 source_modules = ["museums.services"]
 forbidden_modules = ["sqlalchemy"]
+allow_indirect_imports = "True"
 
 [[tool.importlinter.contracts]]
 name = "Repositories cannot import services, routers, workflows, or clients"
