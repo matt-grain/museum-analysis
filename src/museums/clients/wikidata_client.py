@@ -9,6 +9,7 @@ from typing import Any
 
 import httpx
 
+from museums.clients.population_parsing import PopulationPoint, parse_populations
 from museums.config import Settings
 from museums.exceptions import ExternalDataParseError, WikidataUnavailableError
 from museums.http_client import retry_policy
@@ -22,14 +23,6 @@ class VisitorPoint:
 
     year: int
     visitors: int
-
-
-@dataclass(frozen=True)
-class PopulationPoint:
-    """A single (year, population) data point for a city."""
-
-    year: int
-    population: int
 
 
 @dataclass(frozen=True)
@@ -53,19 +46,13 @@ def _chunk[T](seq: Sequence[T], size: int = 50) -> Iterator[list[T]]:
 
 
 def _val(binding: dict[str, Any], key: str) -> str | None:
-    """Extract value string from a SPARQL binding entry, or None."""
     entry = binding.get(key)
     return str(entry.get("value", "")) if entry is not None else None
 
 
-def _extract_qid(uri: str | None) -> str | None:
-    """Extract the QID suffix from a Wikidata entity URI."""
-    return uri.split("/")[-1] if uri else None
-
-
 def _accumulate_enrichment_row(grouped: dict[tuple[str, str], dict[str, Any]], row: dict[str, Any]) -> None:
     """Merge one SPARQL binding row into the grouped enrichment dict."""
-    museum_qid = _extract_qid(_val(row, "museum") or "") or ""
+    museum_qid = (_val(row, "museum") or "").split("/")[-1]
     title = _val(row, "title") or ""
     key = (title, museum_qid)
     if key not in grouped:
@@ -89,7 +76,6 @@ def _accumulate_enrichment_row(grouped: dict[tuple[str, str], dict[str, Any]], r
 
 
 def _build_enrichment(e: dict[str, Any]) -> MuseumEnrichment:
-    """Convert an accumulated enrichment dict into a frozen MuseumEnrichment."""
     return MuseumEnrichment(
         wikipedia_title=e["wikipedia_title"],
         museum_qid=e["museum_qid"],
@@ -107,20 +93,6 @@ def _parse_enrichments(bindings: list[dict[str, Any]]) -> list[MuseumEnrichment]
     for row in bindings:
         _accumulate_enrichment_row(grouped, row)
     return [_build_enrichment(e) for e in grouped.values()]
-
-
-def _parse_populations(bindings: list[dict[str, Any]]) -> dict[str, list[PopulationPoint]]:
-    """Group SPARQL rows by city QID into sorted PopulationPoint lists."""
-    raw: dict[str, dict[int, int]] = {}
-    for row in bindings:
-        city_qid = _extract_qid(_val(row, "city")) or ""
-        year_str, pop_str = _val(row, "year"), _val(row, "population")
-        if not year_str or not pop_str:
-            continue
-        yr, pop = int(year_str), int(float(pop_str))
-        raw.setdefault(city_qid, {})
-        raw[city_qid][yr] = max(raw[city_qid].get(yr, 0), pop)
-    return {qid: [PopulationPoint(year=y, population=p) for y, p in sorted(pts.items())] for qid, pts in raw.items()}
 
 
 class WikidataClient:
@@ -142,7 +114,7 @@ class WikidataClient:
         all_bindings: list[dict[str, Any]] = []
         for chunk in _chunk(city_qids):
             all_bindings.extend(await self._run_sparql(self._population_query(chunk)))
-        return _parse_populations(all_bindings)
+        return parse_populations(all_bindings)
 
     async def _run_sparql(self, query: str) -> list[dict[str, Any]]:
         headers = {"Accept": _SPARQL_ACCEPT, "User-Agent": self._settings.user_agent}
@@ -169,6 +141,10 @@ class WikidataClient:
     def _museum_query(self, titles: list[str]) -> str:
         values = " ".join(f'"{t.replace(chr(34), chr(92) + chr(34))}"@en' for t in titles)
         threshold = self._settings.museum_visitor_threshold
+        # For ?city we walk P131 transitively up to the first entity that is an
+        # instance of "city" (Q515) or any subclass, so museums in Paris resolve
+        # to Paris (Q90) instead of the 7th arrondissement (Q259463).
+        # P159 (headquarters) is a fallback.
         return (
             f"SELECT ?museum ?museumLabel ?city ?cityLabel ?country ?countryLabel ?title ?visitors ?year WHERE {{"
             f" VALUES ?title {{ {values} }}"
@@ -177,7 +153,11 @@ class WikidataClient:
             f" OPTIONAL {{ ?vStatement pq:P585 ?date . BIND(YEAR(?date) AS ?year) }}"
             f" FILTER(?visitors > {threshold}) FILTER(!BOUND(?year) || ?year >= 2000)"
             f" ?museum wdt:P17 ?country ."
-            f" OPTIONAL {{ ?museum wdt:P131 ?city }} OPTIONAL {{ ?museum wdt:P159 ?city }}"
+            f" OPTIONAL {{"
+            f"  ?museum wdt:P131* ?city ."
+            f"  ?city wdt:P31/wdt:P279* wd:Q515 ."
+            f" }}"
+            f" OPTIONAL {{ ?museum wdt:P159 ?city }}"
             f' SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" }} }}'
         )
 

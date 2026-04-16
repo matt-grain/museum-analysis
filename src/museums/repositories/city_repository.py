@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,6 +24,10 @@ class CityRepository:
         """Return all cities ordered by name."""
         result = await self._session.execute(select(City).order_by(City.name))
         return list(result.scalars().all())
+
+    async def delete_all(self) -> None:
+        """Delete all cities. CASCADEs to population_records; nullifies museums.city_id."""
+        await self._session.execute(delete(City))
 
     async def upsert_by_qid(self, qid: str, name: str, country: str | None) -> City:
         """Insert or update a city by Wikidata QID. Returns the persisted row."""

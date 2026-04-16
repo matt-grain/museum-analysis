@@ -109,6 +109,15 @@ class IngestionWorkflow:
         log: structlog.stdlib.BoundLogger,
     ) -> RefreshSummary:
         enrichments, populations = await self._fetch_data(log)
+        # Wipe existing data AFTER the fetch succeeds — replaces the DB with
+        # the current Wikidata response, preventing stale rows from surviving
+        # when a filter/query change shrinks the response. If a fetch fails,
+        # nothing gets wiped (failure rolls back the outer transaction).
+        # Delete order: museums first (cascades to visitor_records), then
+        # cities (cascades to population_records).
+        await self._deps.museum_repo.delete_all()
+        await self._deps.city_repo.delete_all()
+        log.info("wiped_existing_data_before_reingest")
         qid_to_city_id = await self._upsert_cities(enrichments)
         museums_count, visitor_count = await self._upsert_museums_and_visitors(enrichments, qid_to_city_id)
         pop_count = await self._upsert_populations(populations)

@@ -1,0 +1,22 @@
+.venv/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+.import_linter_cache/
+.git/
+.github/
+tests/
+prototype/
+notebook/
+docs/
+.env
+.env.local
+docker-compose*.yml
+Dockerfile*
+
+# Exclude other markdown docs but keep README.md — hatchling needs it
+# at build time (declared as `readme = "README.md"` in pyproject.toml).
+ARCHITECTURE.md
+CLAUDE.md
+IMPLEMENTATION_*.md
+decisions.md

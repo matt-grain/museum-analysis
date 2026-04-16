@@ -9,7 +9,8 @@ import httpx
 import pytest
 import respx
 
-from museums.clients.wikidata_client import MuseumEnrichment, PopulationPoint, WikidataClient
+from museums.clients.population_parsing import PopulationPoint, filter_scope_outliers
+from museums.clients.wikidata_client import MuseumEnrichment, WikidataClient
 from museums.config import Settings
 from museums.exceptions import ExternalDataParseError
 
@@ -90,3 +91,41 @@ async def test_fetch_raises_external_data_parse_error_on_missing_bindings(settin
                 await wd.fetch_museum_enrichment(["Louvre"])
 
     assert exc_info.value.source == "wikidata"
+
+
+def test_filter_scope_outliers_drops_metro_when_minority_mixed_in() -> None:
+    """A lone metro-area value among admin-boundary values is filtered out."""
+    raw = {2005: 12_600_000, 2010: 13_100_000, 2015: 13_600_000, 2016: 38_000_000, 2020: 14_100_000}
+
+    filtered = filter_scope_outliers(raw)
+
+    assert 2016 not in filtered
+    assert set(filtered.keys()) == {2005, 2010, 2015, 2020}
+
+
+def test_filter_scope_outliers_drops_metro_when_majority_mixed_in() -> None:
+    """Even when metro values dominate the series, we anchor on the min and drop values >2x."""
+    # 3 metro values, 1 admin value — median would pick metro; MIN-anchored filter keeps admin
+    raw = {2005: 13_000_000, 2010: 38_000_000, 2015: 38_500_000, 2020: 39_000_000}
+
+    filtered = filter_scope_outliers(raw)
+
+    assert set(filtered.keys()) == {2005}
+
+
+def test_filter_scope_outliers_keeps_internally_consistent_series() -> None:
+    """A series where max/min <= 2x is treated as internally consistent — no filtering."""
+    raw = {2000: 8_000_000, 2010: 8_400_000, 2020: 8_800_000}
+
+    filtered = filter_scope_outliers(raw)
+
+    assert filtered == raw
+
+
+def test_filter_scope_outliers_skips_when_fewer_than_three_points() -> None:
+    """Outlier filter needs >=3 points; otherwise pass through."""
+    raw = {2015: 13_600_000, 2016: 38_000_000}
+
+    filtered = filter_scope_outliers(raw)
+
+    assert filtered == raw

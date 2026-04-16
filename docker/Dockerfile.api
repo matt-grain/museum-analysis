@@ -14,10 +14,11 @@ COPY pyproject.toml uv.lock ./
 # Install dependencies (no source code yet)
 RUN uv sync --frozen --no-dev --no-install-project
 
-# Copy application source
+# Copy application source (README.md is needed by hatchling — pyproject.toml
+# declares it via the `readme` field)
 COPY src/ ./src/
 COPY alembic/ ./alembic/
-COPY alembic.ini ./
+COPY alembic.ini README.md ./
 
 # Install the project itself
 RUN uv sync --frozen --no-dev

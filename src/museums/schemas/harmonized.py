@@ -14,3 +14,5 @@ class HarmonizedRowOut(BaseModel):
     visitors: int
     population_est: float
     population_is_extrapolated: bool
+    population_fit_slope: float | None
+    population_fit_intercept: float | None

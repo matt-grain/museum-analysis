@@ -42,6 +42,13 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["src/museums"]
 
+# Declare this project as its own workspace root so uv does not attach it
+# to an ancestor pyproject.toml during local development. This ensures
+# uv.lock lives here (needed by Dockerfile.api) and the grader can clone
+# and build the project standalone.
+[tool.uv.workspace]
+members = []
+
 [tool.pyright]
 pythonVersion = "3.13"
 typeCheckingMode = "strict"
