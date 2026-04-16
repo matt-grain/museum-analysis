@@ -13,9 +13,9 @@
 | Phase 3: External clients + ingestion workflow | ✅ Complete | 1/1 | 100% |
 | Phase 4: Harmonization + regression services | ✅ Complete | 1/1 | 100% |
 | Phase 5: API layer (schemas, query services, routers, main) | ✅ Complete | 1/1 | 100% |
-| Phase 6: Notebook + CI + docs | ⏳ Pending | 0/1 | 0% |
+| Phase 6: Notebook + CI + docs | ✅ Complete | 1/1 | 100% |
 
-**Overall:** 5/6 phases complete (83%).
+**Overall:** 6/6 phases complete (100%). **Project is code-complete.**
 
 ---
 
@@ -272,14 +272,65 @@
 
 ---
 
-## Next Phase Preview
+---
 
-**Phase 6: Notebook + CI + docs** (final phase)
-- ~5 files new: `notebook/regression_analysis.ipynb` (3-act demo), `.github/workflows/ci.yml`, `ARCHITECTURE.md`, finalize `README.md`, extend `decisions.md`
-- Dependencies: Phase 5 ✅ (needs full API)
-- Ready to start.
-- Key outputs: grader-facing notebook that hits the live API (via `requests`); bare-minimum GitHub Actions CI running the pre-commit pipeline; architecture doc; final README with CI badge + run instructions + troubleshooting.
-- Manual QA: docker compose up + curl gating + notebook "Run All" check before the phase is accepted.
+## Phase 6 — Notebook, CI & Docs (FINAL)
+
+**Implemented:** 2026-04-16
+**Agent:** `python-fastapi` (Sonnet)
+**Tooling:** ✅ All pass — 59/59 tests unchanged, both pre-commit stages green, no source-code changes
+
+### Completed
+- ✅ `notebook/regression_analysis.ipynb` (18 cells, 3 acts: raw data → harmonization → regression). All outputs cleared. Reads `MUSEUMS_API_URL` env var (default `http://api:8000`). 4 matplotlib plots (population time series, per-city OLS fits with extrapolation markers, log-log scatter + fit, predicted-vs-actual).
+- ✅ `.github/workflows/ci.yml` (52 lines) — single job, Postgres 16 service container, uv-based setup, both pre-commit stages + Alembic upgrade. No matrix, no docker build, no deployment. Triggers on push to main + PRs.
+- ✅ `ARCHITECTURE.md` (238 lines) — 7 required sections (Overview, Tech Stack, Project Structure, Layer Responsibilities with 4 real code extracts from the shipped codebase, Data Flow for POST /refresh and GET /regression, Key Domain Concepts, State Machines).
+- ✅ `decisions.md` extended (243 lines, 9 ADRs total: 1 pre-existing + 8 new covering Wikipedia+Wikidata dual source, Postgres over SQLite, per-city OLS, log-log transform, 24h cooldown, notebook-via-API, workflows-vs-services layering, RegressionService→HarmonizationService exception).
+- ✅ `README.md` finalized (110 lines) — CI badge, WSL-prefixed docker commands, troubleshooting section, links to ARCHITECTURE.md + docs/PROJECT.md + decisions.md.
+
+### Deviation noted
+- Sonnet clarified: `decisions.md` had 1 pre-existing ADR (not 2 as the dispatch prompt stated). 8 new ADRs were added → 9 total, consistent with the plan's numbered list.
+
+### Files Created (5 new + 3 modified)
+- `notebook/regression_analysis.ipynb`
+- `.github/workflows/ci.yml`
+- `ARCHITECTURE.md`
+- `decisions.md` (modified — 8 ADRs appended)
+- `README.md` (modified — finalized with CI badge, troubleshooting, links)
+
+### Verification Checklist
+| Item | Status |
+|---|---|
+| Notebook 3-act narrative | ✅ |
+| Notebook outputs cleared | ✅ |
+| CI YAML validates | ✅ |
+| ARCHITECTURE.md real code extracts (not paraphrased) | ✅ |
+| decisions.md all 9 ADRs have full Context/Decision/Alternatives/Consequences | ✅ |
+| README.md CI badge + troubleshooting + WSL docker commands | ✅ |
+| Tooling gate green | ✅ |
+| No source-code changes under src/museums/ or tests/ | ✅ |
+| 59/59 tests still passing | ✅ |
+
+### Manual QA required before declaring the homework submission-ready
+1. `wsl docker compose -f docker/docker-compose.yml up --build`
+2. `curl http://localhost:8000/health` → 200
+3. `curl -X POST http://localhost:8000/refresh` → 202 (first run; takes 30-120s)
+4. `curl "http://localhost:8000/museums?limit=5" | jq '.pagination.total'` → > 20
+5. `curl http://localhost:8000/harmonized | jq 'length'` → > 20
+6. `curl http://localhost:8000/regression | jq '.r_squared'` → > 0.1
+7. Open `http://localhost:8888` → `regression_analysis.ipynb` → Run All → all 18 cells green, 4 plots render
+8. Push to GitHub and verify the CI run goes green on `main`
+
+---
+
+## Project Summary
+
+**Status:** ✅ Code-complete across all 6 phases.
+**Commits:** 5 phase commits on `main` branch of `matt-grain/museum-analysis`.
+**Test count:** 59 (cumulative, all passing).
+**Architecture contracts:** 5 import-linter rules kept.
+**Docs:** `CLAUDE.md`, `docs/PROJECT.md`, `ARCHITECTURE.md`, `decisions.md` (9 ADRs), `README.md`, `IMPLEMENTATION_STATUS.md`.
+**Pre-commit hooks:** 11 (ruff + pyright at commit; pytest + import-linter + radon + vulture + 4 custom architectural checks at push).
+**Next action:** manual QA of the full stack (docker compose up + notebook run-all), then final `git push` triggers CI.
 
 ---
 

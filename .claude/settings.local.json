@@ -47,7 +47,12 @@
       "Bash(wsl.exe bash *)",
       "Bash(python -c ' *)",
       "Bash(python -c \"import importlinter.contracts.forbidden; help\\(importlinter.contracts.forbidden.ForbiddenContract\\)\")",
-      "Bash(python tools/check_lengths.py)"
+      "Bash(python tools/check_lengths.py)",
+      "Bash(python3 *)",
+      "Bash(git *)",
+      "Bash(python *)",
+      "Bash(uv lock *)",
+      "Bash(sort -k1 -rn)"
     ]
   }
 }

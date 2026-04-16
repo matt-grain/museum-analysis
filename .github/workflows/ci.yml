@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: museums
+          POSTGRES_PASSWORD: museums
+          POSTGRES_DB: museums_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      MUSEUMS_DATABASE_URL: postgresql+asyncpg://museums:museums@localhost:5432/museums_test
+      MUSEUMS_USER_AGENT: "museums-ci/0.1 (ci@example.com)"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: latest
+
+      - name: Install Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Pre-commit (fast stage — ruff + pyright)
+        run: uv run pre-commit run --all-files
+
+      - name: Alembic upgrade
+        run: uv run alembic upgrade head
+
+      - name: Pre-commit (pre-push stage — pytest, import-linter, radon, vulture, custom checks)
+        run: uv run pre-commit run --hook-stage pre-push --all-files
