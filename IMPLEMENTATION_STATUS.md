@@ -12,10 +12,10 @@
 | Phase 2: Data layer (models, repos, migration) | ✅ Complete | 1/1 | 100% |
 | Phase 3: External clients + ingestion workflow | ✅ Complete | 1/1 | 100% |
 | Phase 4: Harmonization + regression services | ✅ Complete | 1/1 | 100% |
-| Phase 5: API layer (schemas, query services, routers, main) | ⏳ Pending | 0/1 | 0% |
+| Phase 5: API layer (schemas, query services, routers, main) | ✅ Complete | 1/1 | 100% |
 | Phase 6: Notebook + CI + docs | ⏳ Pending | 0/1 | 0% |
 
-**Overall:** 4/6 phases complete (67%).
+**Overall:** 5/6 phases complete (83%).
 
 ---
 
@@ -227,14 +227,59 @@
 
 ---
 
+---
+
+## Phase 5 — API Layer
+
+**Implemented:** 2026-04-16
+**Agent:** `python-fastapi` (Sonnet)
+**Tooling:** ✅ All pass — 59/59 cumulative tests (parametrized 503 test counts as 2 items)
+
+### Completed
+- ✅ 7 Pydantic schemas with `from_attributes=True`, separated by purpose: `ErrorOut`, `PaginationMeta`, `HealthOut`, `VisitorRecordOut`, `MuseumOut` (with city-name flattening via `@model_validator(mode="before")`), `PaginatedMuseumsOut`, `PopulationPointOut`, `CityPopulationsOut`, `HarmonizedRowOut`, `RegressionPointOut`, `RegressionResultOut`, `RefreshResultOut.from_summary()`
+- ✅ 2 thin query services (`MuseumQueryService`, `CityQueryService`) — keep routers off repositories (import-linter contract 1)
+- ✅ 6 FastAPI routers — every endpoint has `response_model` + `status_code`; every param uses `Annotated[]` aliases; non-defaulted `Depends` params come before `Query()` defaults
+- ✅ `dependencies.py` (186 lines) — all DI chains: Settings, Session, HttpClient, 5 repos, 2 clients, 4 services, `IngestionDeps` factory, `IngestionWorkflow` (exactly 5 args)
+- ✅ `exception_handlers.py` extracted from main.py (52 lines) — 6 handlers mapping domain exceptions to HTTP status codes + `Retry-After` header on `RefreshCooldownError`
+- ✅ `main.py` completion (80 lines) — lifespan with DB `SELECT 1` fail-fast + shared `httpx.AsyncClient` on `app.state`, router registration, no CORS
+- ✅ `decisions.md` created early (ahead of Phase 6) to document the import-linter contract fix
+- ✅ 15 new tests (1 health + 4 refresh including parametrized 503 for MediaWiki + Wikidata + 2 museums + 1 cities + 1 harmonized + 2 regression + 2 museum-query + 2 city-query)
+
+### Out-of-plan additions (all defensible)
+- `decisions.md` created in Phase 5 instead of Phase 6 — documents the `allow_indirect_imports = "True"` on both the services-sqlalchemy contract (Phase 4) and the new routers contract (Phase 5). Phase 6 will add the remaining ADRs.
+- `allow_indirect_imports = "True"` on the routers contract — routers import `dependencies.py` which necessarily imports repositories/clients/models to build DI chains. Same pragmatic pattern as the services-sqlalchemy contract fix in Phase 4. The contract still enforces that routers don't DIRECTLY import repositories/models/clients.
+- `seeding_session` fixture added to `conftest.py` (separate from `db_session`) — router integration tests need committed data visible to the app's own session; `db_session` BEGIN/ROLLBACK would hide the seed. Teardown is TRUNCATE with rollback-guard.
+- `test_app` fixture exposed separately from `app_client` — enables `app.dependency_overrides[...] = ...` per-test without reaching into private `_transport.app`.
+
+### Files Created / Modified
+- 22 new source + test files (see Sonnet's report above for the full table)
+- 4 modified: `main.py`, `routers/__init__.py`, `tests/conftest.py`, `pyproject.toml`
+- 1 new doc: `decisions.md`
+
+### Verification Checklist
+| Item | Status |
+|---|---|
+| All planned files created | ✅ |
+| Tooling gate fully green (both stages) | ✅ |
+| Tests pass | ✅ 59/59 |
+| Import-linter contracts | ✅ 5 kept / 0 broken |
+| `response_model` + `status_code` on every endpoint | ✅ |
+| `Annotated[]` aliases everywhere (no raw `Depends()` in sigs) | ✅ |
+| `RefreshCooldownError` → 429 + `Retry-After` header | ✅ |
+| No `HTTPException` outside `main.py` / `exception_handlers.py` | ✅ |
+| No CORS middleware | ✅ |
+| All `.py` files under 200 lines (`dependencies.py` at 186 — tight) | ✅ |
+
+---
+
 ## Next Phase Preview
 
-**Phase 5: API layer (schemas, query services, routers, main)**
-- ~22 files new: 7 schemas + 2 query services (MuseumQueryService + CityQueryService to keep routers off repositories) + 6 routers + dependencies.py + main.py completion + 7 test files
-- Dependencies: Phase 3 ✅ AND Phase 4 ✅
+**Phase 6: Notebook + CI + docs** (final phase)
+- ~5 files new: `notebook/regression_analysis.ipynb` (3-act demo), `.github/workflows/ci.yml`, `ARCHITECTURE.md`, finalize `README.md`, extend `decisions.md`
+- Dependencies: Phase 5 ✅ (needs full API)
 - Ready to start.
-- Key outputs: full HTTP surface (`/health`, `POST /refresh`, `GET /museums`, `GET /cities/populations`, `GET /harmonized`, `GET /regression`), Pydantic response schemas, DI chains, global exception handlers mapping domain errors → HTTP status codes.
-- Blocks: Phase 6 (notebook calls the API).
+- Key outputs: grader-facing notebook that hits the live API (via `requests`); bare-minimum GitHub Actions CI running the pre-commit pipeline; architecture doc; final README with CI badge + run instructions + troubleshooting.
+- Manual QA: docker compose up + curl gating + notebook "Run All" check before the phase is accepted.
 
 ---
 

@@ -105,6 +105,9 @@ include_paths = ["src"]
 include_external_packages = true
 
 [[tool.importlinter.contracts]]
+# allow_indirect_imports: routers wire through dependencies.py which transitively
+# imports repositories/clients — that is its job. Direct imports from router
+# files into these layers remain forbidden.
 name = "Routers cannot import repositories, models, or clients"
 type = "forbidden"
 source_modules = ["museums.routers"]
@@ -113,6 +116,7 @@ forbidden_modules = [
     "museums.models",
     "museums.clients",
 ]
+allow_indirect_imports = "True"
 
 [[tool.importlinter.contracts]]
 name = "Services cannot import routers, workflows, or clients"
