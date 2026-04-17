@@ -1,7 +1,10 @@
-"""Pre-commit check: HTTPException must only appear in main.py / exception_handlers.py.
+"""Pre-commit check: HTTPException must stay in the HTTP layer.
 
-Services, workflows, routers, and repositories must raise domain exceptions.
-Only main.py (global handlers) and exception_handlers.py may import or raise HTTPException.
+Services, workflows, clients, and repositories must raise domain exceptions.
+Routers MAY raise HTTPException for HTTP-layer concerns (auth gates, 401s
+before the domain is touched) — CLAUDE.md §Layered architecture allows this.
+main.py and exception_handlers.py are also allowlisted because they register
+and handle HTTPException.
 """
 
 import ast
@@ -15,7 +18,12 @@ ALLOWLISTED_SUFFIXES = ("main.py", "exception_handlers.py")
 
 
 def _is_allowlisted(file_path: Path) -> bool:
-    return file_path.name in ALLOWLISTED_SUFFIXES
+    # HTTP-layer files can freely use HTTPException.
+    if file_path.name in ALLOWLISTED_SUFFIXES:
+        return True
+    # Router files are part of the HTTP layer — they can use HTTPException
+    # for auth gates and input validation before the domain is reached.
+    return "routers" in file_path.parts
 
 
 class HTTPExceptionChecker(ast.NodeVisitor):
