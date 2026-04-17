@@ -1,9 +1,22 @@
 # Architecture Diagrams
 
 GitHub renders Mermaid natively, so these diagrams display inline when
-browsing the repo. Local preview: `scripts/generate_diagrams.py` renders
-each block to an SVG under `docs/diagrams/` via `npx
-@mermaid-js/mermaid-cli`.
+browsing the repo. Pre-rendered SVGs also ship under `docs/diagrams/`
+for offline viewing and embedding.
+
+| Diagram | Source | Rendered |
+|---|---|---|
+| Class (layered architecture) | [`diagrams/class_diagram.mmd`](diagrams/class_diagram.mmd) | [`diagrams/class_diagram.svg`](diagrams/class_diagram.svg) |
+| Sequence: `POST /refresh` | [`diagrams/sequence_refresh.mmd`](diagrams/sequence_refresh.mmd) | [`diagrams/sequence_refresh.svg`](diagrams/sequence_refresh.svg) |
+| Sequence: `GET /regression` | [`diagrams/sequence_regression.mmd`](diagrams/sequence_regression.mmd) | [`diagrams/sequence_regression.svg`](diagrams/sequence_regression.svg) |
+| End-to-end data flow | [`diagrams/dataflow.mmd`](diagrams/dataflow.mmd) | [`diagrams/dataflow.svg`](diagrams/dataflow.svg) |
+| Refresh state machine | [`diagrams/refresh_state_machine.mmd`](diagrams/refresh_state_machine.mmd) | [`diagrams/refresh_state_machine.svg`](diagrams/refresh_state_machine.svg) |
+
+Regenerate the SVGs after editing any `.mmd` source:
+```bash
+uv run python scripts/generate_diagrams.py
+```
+Requires `npx` (Node.js) on PATH.
 
 ## Class Diagram — Layered Architecture
 

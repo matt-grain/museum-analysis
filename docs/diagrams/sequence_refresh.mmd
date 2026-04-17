@@ -1,0 +1,46 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Router as refresh router
+    participant Workflow as IngestionWorkflow
+    participant RefreshRepo as RefreshStateRepository
+    participant MW as MediaWikiClient
+    participant WD as WikidataClient
+    participant DB as Repositories + DB
+
+    Client->>Router: POST /refresh?force=false
+    Router->>Workflow: refresh(force=false)
+
+    Workflow->>RefreshRepo: get()
+    RefreshRepo-->>Workflow: RefreshState
+
+    alt Within 24h cooldown
+        Workflow-->>Router: raise RefreshCooldownError
+        Router-->>Client: 429 + Retry-After
+    else Cooldown passed (or force=true)
+        Workflow->>MW: fetch_museum_list()
+        MW-->>Workflow: list[MuseumListEntry]
+
+        Workflow->>WD: fetch_museum_enrichment(titles)
+        WD-->>Workflow: list[MuseumEnrichment]
+
+        Workflow->>WD: fetch_city_populations(city_qids)
+        WD-->>Workflow: dict[qid -> list[PopulationPoint]]
+
+        Note over Workflow,DB: All DB writes wrapped<br/>in one transaction
+
+        Workflow->>DB: museum_repo.delete_all()
+        Workflow->>DB: city_repo.delete_all() (FK CASCADE on children)
+        Workflow->>DB: upsert cities / museums / visitors / populations
+        Workflow->>RefreshRepo: mark_refreshed(counts)
+
+        alt Any exception during steps 3-7
+            Workflow->>DB: session.rollback()
+            Workflow-->>Router: re-raise domain error
+            Router-->>Client: 502 / 503 via exception handlers
+        else All steps succeed
+            Workflow->>DB: session.commit()
+            Workflow-->>Router: RefreshSummary
+            Router-->>Client: 202 + RefreshResultOut
+        end
+    end

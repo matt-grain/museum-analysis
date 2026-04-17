@@ -1,0 +1,27 @@
+flowchart LR
+    Wiki[en.wikipedia.org<br/>List_of_most_visited_museums]
+    WD[query.wikidata.org<br/>SPARQL endpoint]
+    Parser[mwparserfromhell<br/>parse wikitext]
+
+    Wiki -->|Action API<br/>action=parse&prop=wikitext| Parser
+    Parser -->|list of Wikipedia titles| MWClient[MediaWikiClient]
+
+    WD -->|SPARQL schema:about +<br/>P131* walk to Q515| WDClient[WikidataClient]
+
+    MWClient -->|titles| Workflow[IngestionWorkflow]
+    WDClient -->|enrichments<br/>populations| Workflow
+
+    Workflow -->|wipe + upsert in one tx| PG[(PostgreSQL)]
+    PG -->|read| HarmSvc[HarmonizationService]
+    HarmSvc -->|per-city OLS fit| RegSvc[RegressionService]
+    RegSvc -->|log-log OLS| NB[Jupyter Notebook]
+
+    subgraph Filters[Data cleanup]
+        OutlierFilter[filter_scope_outliers<br/>drop >2x min when max/min > 2]
+        NearestYear[pick most-recent visitor record]
+        P131Walk[P131* walk up to Q515<br/>Louvre → Paris, not arrondissement]
+    end
+
+    Parser -.-> P131Walk
+    WDClient -.-> OutlierFilter
+    HarmSvc -.-> NearestYear

@@ -90,6 +90,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**/*.py" = ["S101", "S105", "S106"]
 "tools/**/*.py" = ["T20"]  # allow print in pre-commit scripts
+"scripts/**/*.py" = ["T20", "S603"]  # ops scripts: allow print + subprocess calls (inputs are shutil.which-resolved, not user input)
 "alembic/**/*.py" = ["ERA001", "E402"]
 
 [tool.ruff.lint.isort]

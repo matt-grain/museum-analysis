@@ -1,0 +1,37 @@
+sequenceDiagram
+    autonumber
+    participant Client
+    participant Router as regression router
+    participant RegSvc as RegressionService
+    participant HarmSvc as HarmonizationService
+    participant MRepo as MuseumRepository
+    participant PRepo as PopulationRecordRepository
+
+    Client->>Router: GET /regression
+    Router->>RegSvc: fit()
+    RegSvc->>HarmSvc: build_harmonized_rows()
+
+    HarmSvc->>MRepo: list_paginated(0, 10_000)
+    MRepo-->>HarmSvc: museums with city + visitor_records
+    HarmSvc->>PRepo: list_all_grouped()
+    PRepo-->>HarmSvc: dict[city_id -> list[PopulationRecord]]
+
+    Note over HarmSvc: Per-city OLS fit<br/>(numpy.polyfit deg=1)
+
+    loop For each eligible museum
+        HarmSvc->>HarmSvc: pick most-recent visitor record
+        HarmSvc->>HarmSvc: project population_est at visitor_year
+        HarmSvc->>HarmSvc: flag population_is_extrapolated
+    end
+
+    HarmSvc-->>RegSvc: list[HarmonizedRow]
+
+    alt fewer than 5 rows
+        RegSvc-->>Router: raise InsufficientDataError
+        Router-->>Client: 422 + code=insufficient_data
+    else >= 5 rows
+        Note over RegSvc: sklearn LinearRegression<br/>on log(population) vs log(visitors)
+        RegSvc->>RegSvc: compute R², residuals, per-point predictions
+        RegSvc-->>Router: RegressionResult
+        Router-->>Client: 200 + RegressionResultOut
+    end

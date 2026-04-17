@@ -1,0 +1,115 @@
+classDiagram
+    direction TB
+
+    class Museum {
+        +int id
+        +str name
+        +str wikipedia_title
+        +str? wikidata_qid
+        +int? city_id
+        +list~VisitorRecord~ visitor_records
+        +City? city
+    }
+    class City {
+        +int id
+        +str wikidata_qid
+        +str name
+        +str? country
+        +list~PopulationRecord~ population_records
+    }
+    class VisitorRecord {
+        +int museum_id
+        +int year
+        +int visitors
+    }
+    class PopulationRecord {
+        +int city_id
+        +int year
+        +int population
+    }
+    class RefreshState {
+        +int id (=1)
+        +datetime? last_refresh_at
+    }
+
+    class MuseumRepository {
+        +list_paginated(skip, limit) tuple
+        +upsert_by_name(...) Museum
+        +delete_all() None
+    }
+    class CityRepository {
+        +upsert_by_qid(...) City
+        +list_all() list
+        +delete_all() None
+    }
+    class HealthRepository {
+        +ping() None
+    }
+
+    class HarmonizationService {
+        -museum_repo
+        -visitor_repo
+        -population_repo
+        +build_harmonized_rows() list~HarmonizedRow~
+        +build_harmonized_paginated(skip, limit) PaginatedHarmonizedOut
+    }
+    class RegressionService {
+        -harmonization
+        +fit() RegressionResult
+    }
+    class MuseumQueryService {
+        +list_paginated(skip, limit) PaginatedMuseumsOut
+    }
+    class CityQueryService {
+        +list_paginated(skip, limit) PaginatedCitiesOut
+    }
+    class HealthService {
+        -repo: HealthRepository
+        +check() None
+    }
+
+    class IngestionWorkflow {
+        -mediawiki: MediaWikiClient
+        -wikidata: WikidataClient
+        -session: AsyncSession
+        -settings: Settings
+        -deps: IngestionDeps
+        +refresh(force) RefreshSummary
+    }
+    class IngestionDeps {
+        <<dataclass>>
+        +CityRepository city_repo
+        +MuseumRepository museum_repo
+        +VisitorRecordRepository visitor_repo
+        +PopulationRecordRepository population_repo
+        +RefreshStateRepository refresh_repo
+    }
+
+    class MediaWikiClient {
+        +fetch_museum_list() list~MuseumListEntry~
+    }
+    class WikidataClient {
+        +fetch_museum_enrichment(titles) list
+        +fetch_city_populations(qids) dict
+    }
+
+    Museum "1" --> "*" VisitorRecord : has
+    City "1" --> "*" PopulationRecord : has
+    Museum "*" --> "0..1" City : located in
+
+    MuseumRepository ..> Museum
+    CityRepository ..> City
+    HealthRepository ..> City : SELECT 1
+
+    HarmonizationService --> MuseumRepository
+    HarmonizationService --> CityRepository : via population_repo
+    RegressionService --> HarmonizationService : composes
+    MuseumQueryService --> MuseumRepository
+    CityQueryService --> CityRepository
+    HealthService --> HealthRepository
+
+    IngestionWorkflow --> IngestionDeps : owns
+    IngestionWorkflow --> MediaWikiClient
+    IngestionWorkflow --> WikidataClient
+    IngestionDeps --> CityRepository
+    IngestionDeps --> MuseumRepository

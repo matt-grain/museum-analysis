@@ -1,0 +1,19 @@
+stateDiagram-v2
+    [*] --> NeverRefreshed
+    NeverRefreshed --> Refreshing: POST /refresh<br/>(any time)
+    Fresh --> Refreshing: POST /refresh?force=true
+    Fresh --> Cooling: POST /refresh<br/>(< 24h since last)
+    Cooling --> Fresh: 429<br/>Retry-After returned<br/>no state change
+    Refreshing --> Fresh: commit + mark_refreshed
+    Refreshing --> Stale: rollback on failure<br/>(pre-refresh state restored)
+    Stale --> Refreshing: POST /refresh?force=true
+
+    state Refreshing {
+        [*] --> FetchMediaWiki
+        FetchMediaWiki --> FetchEnrichment
+        FetchEnrichment --> FetchPopulations
+        FetchPopulations --> WipeExisting: after fetch succeeds
+        WipeExisting --> UpsertAll
+        UpsertAll --> MarkRefreshed
+        MarkRefreshed --> [*]: commit
+    }
