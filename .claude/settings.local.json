@@ -52,7 +52,9 @@
       "Bash(git *)",
       "Bash(python *)",
       "Bash(uv lock *)",
-      "Bash(sort -k1 -rn)"
+      "Bash(sort -k1 -rn)",
+      "Bash(ls /c/Python*)",
+      "Read(//usr/**)"
     ]
   }
 }

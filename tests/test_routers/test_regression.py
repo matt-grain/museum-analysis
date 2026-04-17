@@ -10,7 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from tests.factories import build_city, build_museum, build_population_record, build_visitor_record
 
-# 6 museum/city pairs with an approximate log-linear relationship
+# 6 museum/city pairs with an approximate log-linear relationship.
+# Each tuple is (museum_name, city_name, city_qid, museum_qid, population, visitors).
+# Using a flat tuple list rather than factory calls here because the data drives
+# a deterministic mathematical invariant (log-linear R²) — the exact values matter
+# and wrapping them in factory calls would obscure the relationship without simplifying the test.
 _MUSEUM_DATA = [
     ("Museum A", "City A", "QC01", "QM01", 5_000_000, 2_000_000),
     ("Museum B", "City B", "QC02", "QM02", 8_000_000, 3_500_000),

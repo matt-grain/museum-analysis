@@ -6,10 +6,12 @@ from typing import Literal
 
 from pydantic import BaseModel
 
+from museums.enums.error_code import ErrorCode
+
 
 class ErrorOut(BaseModel):
     detail: str
-    code: str
+    code: ErrorCode
 
 
 class PaginationMeta(BaseModel):

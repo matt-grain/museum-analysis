@@ -1,0 +1,1 @@
+Quick prototypes to test wikidata SPARQL API to retrieve city ad museums data

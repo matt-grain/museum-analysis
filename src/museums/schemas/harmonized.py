@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel
 
+from museums.schemas.common import PaginationMeta
+
 
 class HarmonizedRowOut(BaseModel):
     museum_id: int
@@ -16,3 +18,8 @@ class HarmonizedRowOut(BaseModel):
     population_is_extrapolated: bool
     population_fit_slope: float | None
     population_fit_intercept: float | None
+
+
+class PaginatedHarmonizedOut(BaseModel):
+    items: list[HarmonizedRowOut]
+    pagination: PaginationMeta

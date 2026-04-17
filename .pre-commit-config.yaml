@@ -80,3 +80,11 @@ repos:
         pass_filenames: false
         types: [python]
         stages: [pre-push]
+
+      - id: check-no-sqlalchemy-in-routers
+        name: check no sqlalchemy imports in routers
+        entry: uv run --no-sync python tools/pre_commit_checks/check_no_sqlalchemy_in_routers.py
+        language: system
+        pass_filenames: false
+        types: [python]
+        stages: [pre-push]

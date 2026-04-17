@@ -9,7 +9,7 @@ import httpx
 import pytest
 import respx
 
-from museums.clients.population_parsing import PopulationPoint, filter_scope_outliers
+from museums.clients.population_parsing import PopulationPoint, filter_scope_outliers, parse_populations
 from museums.clients.wikidata_client import MuseumEnrichment, WikidataClient
 from museums.config import Settings
 from museums.exceptions import ExternalDataParseError
@@ -91,6 +91,72 @@ async def test_fetch_raises_external_data_parse_error_on_missing_bindings(settin
                 await wd.fetch_museum_enrichment(["Louvre"])
 
     assert exc_info.value.source == "wikidata"
+
+
+@pytest.mark.asyncio
+async def test_fetch_city_populations_raises_external_data_parse_error_on_bad_response(
+    settings: Settings,
+) -> None:
+    """fetch_city_populations raises ExternalDataParseError when results.bindings is absent."""
+    bad_response: dict[str, object] = {"results": {}}
+
+    with respx.mock:
+        respx.get(_SPARQL_URL).mock(return_value=httpx.Response(200, json=bad_response))
+        async with httpx.AsyncClient() as client:
+            wd = WikidataClient(client, settings)
+            with pytest.raises(ExternalDataParseError) as exc_info:
+                await wd.fetch_city_populations(["Q90"])
+
+    assert exc_info.value.source == "wikidata"
+
+
+def test_parse_populations_groups_by_qid_and_dedupes_to_min() -> None:
+    """Two rows for same (QID, year) must keep the smaller population."""
+    bindings = [
+        {
+            "city": {"value": "http://www.wikidata.org/entity/Q90"},
+            "year": {"value": "2020"},
+            "population": {"value": "2200000"},
+        },
+        {
+            "city": {"value": "http://www.wikidata.org/entity/Q90"},
+            "year": {"value": "2020"},
+            "population": {"value": "2100000"},
+        },
+        {
+            "city": {"value": "http://www.wikidata.org/entity/Q90"},
+            "year": {"value": "2021"},
+            "population": {"value": "2150000"},
+        },
+    ]
+
+    result = parse_populations(bindings)
+
+    paris = result["Q90"]
+    yr2020 = next(p for p in paris if p.year == 2020)
+    assert yr2020.population == 2_100_000  # min of 2.2M and 2.1M
+
+
+def test_parse_populations_skips_rows_missing_year_or_population() -> None:
+    """Rows missing year or population values must be silently skipped."""
+    bindings: list[dict[str, object]] = [
+        # valid row
+        {
+            "city": {"value": "http://www.wikidata.org/entity/Q84"},
+            "year": {"value": "2019"},
+            "population": {"value": "8908081"},
+        },
+        # missing population
+        {"city": {"value": "http://www.wikidata.org/entity/Q84"}, "year": {"value": "2020"}},
+        # missing year
+        {"city": {"value": "http://www.wikidata.org/entity/Q84"}, "population": {"value": "9000000"}},
+    ]
+
+    result = parse_populations(bindings)  # type: ignore[arg-type]
+
+    london = result.get("Q84", [])
+    assert len(london) == 1
+    assert london[0].year == 2019
 
 
 def test_filter_scope_outliers_drops_metro_when_minority_mixed_in() -> None:

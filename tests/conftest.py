@@ -29,15 +29,9 @@ def settings() -> Settings:
     """Return a Settings instance with test-friendly overrides."""
     return Settings(
         database_url="postgresql+asyncpg://museums:museums@localhost:5432/museums_test",  # type: ignore[arg-type]
-        log_level="DEBUG",
+        log_level="DEBUG",  # type: ignore[arg-type]  # pydantic-settings coerces str to LogLevel at runtime
         refresh_cooldown_hours=1,
     )
-
-
-@pytest.fixture
-def anyio_backend() -> str:
-    """Use asyncio as the anyio backend."""
-    return "asyncio"
 
 
 @pytest_asyncio.fixture(scope="session")
@@ -107,6 +101,9 @@ async def test_app(async_engine: AsyncEngine) -> AsyncGenerator[FastAPI]:
     from museums.main import create_app
 
     application = create_app()
+    # Fix Unit 1.7: get_session reads from app.state.session_factory; set it here
+    # so that the override factory can also reference it if needed.
+    application.state.session_factory = async_sessionmaker(async_engine, expire_on_commit=False)
     application.dependency_overrides[get_session] = _session_override_factory(async_engine)
     yield application
     application.dependency_overrides.clear()

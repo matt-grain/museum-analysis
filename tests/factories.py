@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from museums.clients.mediawiki_client import MuseumListEntry
+from museums.clients.population_parsing import PopulationPoint
+from museums.clients.wikidata_client import MuseumEnrichment, VisitorPoint
 from museums.models.city import City
 from museums.models.museum import Museum
 from museums.models.population_record import PopulationRecord
@@ -71,3 +74,40 @@ async def build_population_record(
     session.add(record)
     await session.flush()
     return record
+
+
+def make_museum_list_entry(title: str = "Louvre", display_name: str | None = None) -> MuseumListEntry:
+    """Build a MuseumListEntry without touching the database."""
+    return MuseumListEntry(wikipedia_title=title, display_name=display_name or title)
+
+
+def make_museum_enrichment(
+    title: str = "Louvre",
+    museum_qid: str = "Q19675",
+    museum_label: str = "Louvre Museum",
+    city_qid: str | None = "Q90",
+    city_label: str | None = "Paris",
+    country_label: str | None = "France",
+    visitors: int = 8_900_000,
+    year: int = 2019,
+) -> MuseumEnrichment:
+    """Build a MuseumEnrichment without touching the database."""
+    return MuseumEnrichment(
+        wikipedia_title=title,
+        museum_qid=museum_qid,
+        museum_label=museum_label,
+        city_qid=city_qid,
+        city_label=city_label,
+        country_label=country_label,
+        visitor_records=[VisitorPoint(year=year, visitors=visitors)],
+    )
+
+
+def make_population_series(
+    start_year: int = 2010,
+    n: int = 5,
+    base: int = 2_000_000,
+    step: int = 50_000,
+) -> list[PopulationPoint]:
+    """Build a list of PopulationPoints without touching the database."""
+    return [PopulationPoint(year=start_year + i, population=base + i * step) for i in range(n)]

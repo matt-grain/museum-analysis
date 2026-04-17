@@ -27,6 +27,8 @@ class MuseumOut(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+    # Pydantic model_validator(mode="before") receives raw pre-validation input
+    # (ORM instance or dict). Any is the documented type.
     @model_validator(mode="before")
     @classmethod
     def _flatten_city_name(cls, data: Any) -> Any:

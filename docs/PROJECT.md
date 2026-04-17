@@ -14,11 +14,11 @@ Three containers, one compose file.
 
 ```
 ┌──────────────┐      ┌──────────────┐      ┌────────────────┐
-│  PostgreSQL  │◀─────│   FastAPI    │◀─────│    Jupyter     │
+│  PostgreSQL  │◀────│   FastAPI    │◀─────│    Jupyter     │
 │              │      │  (src/…)     │ HTTP │  (notebook.    │
 │  raw tables  │      │              │      │   ipynb)       │
-│  + harmonized│      │  /refresh    │      │                │
-│    view      │      │  /museums    │      │  calls API,    │
+│ + harmonized │      │  /refresh    │      │                │
+│   view       │      │  /museums    │      │  calls API,    │
 │              │      │  /cities/…   │      │  visualizes    │
 │              │      │  /harmonized │      │                │
 │              │      │  /regression │      │                │
@@ -31,13 +31,22 @@ contract.
 
 ## Data sources
 
-- **Museums** — Wikipedia MediaWiki Action API to fetch the canonical page
-  `List_of_most_visited_museums` and extract the museum names from its table.
-  Then enrich each via the Wikidata Query Service (SPARQL) to obtain the
-  QID, city, country, and all per-year visitor records (property P1174 with
-  P585 qualifier).
+- **Museums** — Wikipedia MediaWiki Action API
+  (`action=parse&prop=wikitext`) to fetch the raw wikitext of
+  `List_of_most_visited_museums`, then parsed with **mwparserfromhell**
+  to walk the `{|class="wikitable"` nodes and take the first `Wikilink`
+  of each row (filtering `File:`/`Image:`/`Category:` namespaces).
+  `mwparserfromhell` gives us a structured AST instead of brittle regex
+  over rendered HTML.
+- **Museum enrichment** — Wikidata Query Service (SPARQL). For each
+  Wikipedia title we resolve to a QID via the `schema:about` triple
+  pattern (no federated `SERVICE`), then fetch city (P131 walked
+  transitively up to a `Q515` city — see Harmonization §3), country
+  (P17), and per-year visitor records (P1174 with P585 qualifier).
+  50-title batches.
 - **City populations** — Wikidata Query Service (SPARQL) for historical
-  population time series (property P1082 with P585 qualifier).
+  population time series (property P1082 with P585 qualifier), 50-QID
+  batches, filtered for `year >= 2000`.
 
 **Why both Wikipedia and Wikidata?** The brief says "use the Wikipedia APIs"
 but the actual list page is a rendered HTML table — not a stable structured
@@ -48,26 +57,71 @@ us a defensible, scriptable pipeline.
 
 ## Harmonization — the hard part
 
-The two sources don't align on time:
+Two orthogonal problems to solve before we can regress anything:
+**(A)** Wikidata's location hierarchy is too granular, **(B)** the two
+data sources don't share years, and **(C)** some Wikidata cities report
+metro-area population instead of city-proper.
 
-- A museum may have several yearly visitor records (e.g., Louvre 2019, 2022, 2023).
-- A city may have population records on arbitrary years (census years, UN
-  estimates, etc.).
+### A. Museum → City coupling
+
+Wikidata's `P131` ("located in the administrative territorial entity")
+returns the most specific unit — for museums in Paris that's the
+arrondissement (Q259463), not Paris (Q90). The SPARQL walks `P131`
+**transitively** (`wdt:P131*`) and filters the chain to the first entity
+that is an instance of `wd:Q515` (city, or any subclass). So the Louvre
+resolves `7th arrondissement → Paris → France`; we stop at Paris.
+`P159` (headquarters) is a fallback for entities without a P131 chain.
+
+Museums whose P131 chain never hits a Q515 city are dropped with a
+WARNING log (currently 2 museums: British Museum, National Gallery of
+Victoria — Wikidata doesn't classify their containers as Q515).
+
+### B. Year alignment via per-city OLS
+
+- A museum may have several yearly visitor records (e.g., Louvre 2019,
+  2022, 2023).
+- A city may have population records on arbitrary years (census years,
+  UN estimates, etc.).
 
 For each museum record we want a **visitors ↔ population** pair at the
 **same year**. Approach:
 
-1. For each city, fit a tiny per-city `population ~ year` OLS model on the
-   available data points. This gives a continuous estimator for any year.
-2. For each museum, pick the visitor record **nearest to today** (most
-   recent wins — that's the most policy-relevant data point).
-3. Project the city's population at that visitor-year using the per-city
-   fit from step 1.
-4. Produce one `(museum, city, year, visitors, population_est)` row per
-   museum — that's the harmonized dataset.
+1. For each city with ≥ 2 population records, fit a tiny per-city
+   `population ~ year` OLS model (`numpy.polyfit(deg=1)`). This gives a
+   continuous estimator for any year.
+2. For each museum, pick the visitor record **nearest to today** (sort
+   by `(-year, -visitors)`, take index 0).
+3. Project the city's population at that visitor-year using the
+   per-city fit from step 1. Flag `population_is_extrapolated=True`
+   when the visitor-year falls outside the fit's `[min_year, max_year]`
+   range.
+4. Single-point fallback: if a city has exactly 1 population record and
+   it's within ±2 years of the museum's visitor year, use it directly.
+   Otherwise the museum is dropped with a WARNING.
+5. Produce one `(museum, city, year, visitors, population_est)` row per
+   surviving museum — that's the harmonized dataset.
 
-This logic lives in the service layer (`services/harmonization_service.py`),
-not in the notebook.
+### C. Scope-outlier filter on raw population
+
+Wikidata's `P1082` often mixes **admin-boundary**, **urban-area**, and
+**metro-area** population values for the same QID across different
+years (Tokyo Q1490 has both ~14 M admin and ~38 M metro entries).
+`clients/population_parsing.py::filter_scope_outliers` handles this:
+
+- Pass-through for series with < 3 points or when `max/min ≤ 2` (already
+  internally consistent).
+- When `max/min > 2`, anchor on the **series minimum** and drop any
+  value > `2 × min`. Rationale: real populations don't swing 2× per
+  year; anything that does is a geographic-scope mismatch. Anchoring on
+  MIN biases toward the smallest scope (usually admin-boundary), which
+  is what we want for "city population."
+- Also takes `min()` on same-`(city, year)` duplicate bindings so we
+  never keep a metro value when an admin value is reported for the same
+  year.
+
+All of this logic lives in the service layer
+(`services/harmonization_service.py` for A/B;
+`clients/population_parsing.py` for C), not in the notebook.
 
 ## Regression
 

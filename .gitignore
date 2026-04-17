@@ -48,4 +48,5 @@ dist/
 .docker/
 
 # Claude Code local settings (keep team-shared settings.json if any, ignore personal local)
-# .claude/settings.local.json — kept intentionally for plan/permissions reference
+.claude/settings.local.json — kept intentionally for plan/permissions reference
+

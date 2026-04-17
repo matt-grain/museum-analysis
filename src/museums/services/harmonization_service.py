@@ -9,6 +9,9 @@ import numpy as np
 import numpy.typing as npt
 import structlog
 
+from museums.schemas.common import PaginationMeta
+from museums.schemas.harmonized import HarmonizedRowOut, PaginatedHarmonizedOut
+
 # Repository and model imports are TYPE_CHECKING-only: keeps this module out of
 # SQLAlchemy's import graph (services cannot import sqlalchemy per layer contract).
 if TYPE_CHECKING:
@@ -47,6 +50,16 @@ class CityFit:
     max_year: int
 
 
+@dataclass(frozen=True)
+class _PopulationEstimate:
+    """Result of _estimate_population — named fields replace an opaque 4-tuple."""
+
+    pop_est: float | None
+    is_extrapolated: bool
+    slope: float | None
+    intercept: float | None
+
+
 class HarmonizationService:
     """Build the harmonized dataset from raw museum and population records."""
 
@@ -72,6 +85,14 @@ class HarmonizationService:
         rows = self._build_rows(eligible, populations_by_city, fits)
         return sorted(rows, key=lambda r: -r.visitors)
 
+    async def build_harmonized_paginated(self, skip: int, limit: int) -> PaginatedHarmonizedOut:
+        """Return a paginated slice of harmonized rows."""
+        all_rows = await self.build_harmonized_rows()
+        total = len(all_rows)
+        page = all_rows[skip : skip + limit]
+        items = [HarmonizedRowOut(**vars(r)) for r in page]
+        return PaginatedHarmonizedOut(items=items, pagination=PaginationMeta(total=total, skip=skip, limit=limit))
+
     def _build_fits(
         self,
         populations_by_city: dict[int, list[PopulationRecord]],
@@ -86,6 +107,7 @@ class HarmonizationService:
         """Compute OLS slope/intercept from >= 2 population records."""
         years: npt.NDArray[np.float64] = np.array([r.year for r in points], dtype=float)
         pops: npt.NDArray[np.float64] = np.array([r.population for r in points], dtype=float)
+        # np.polyfit returns float64 but its stub uses Any for the generic dtype.
         coeffs: npt.NDArray[Any] = np.polyfit(years, pops, deg=1)
         return CityFit(
             city_id=city_id,
@@ -100,6 +122,11 @@ class HarmonizationService:
         """Return most recent record, tie-breaking on max visitors."""
         return sorted(records, key=lambda r: (-r.year, -r.visitors))[0]
 
+    # Museum is imported under TYPE_CHECKING to keep this service out of the
+    # SQLAlchemy import graph (enforced by import-linter). The runtime type is
+    # the SQLAlchemy Museum model; we use Any rather than a forward-ref string
+    # because pyright can't narrow a string annotation to a concrete class across
+    # the TYPE_CHECKING boundary for list element types.
     def _build_rows(
         self,
         eligible: list[Any],
@@ -121,26 +148,23 @@ class HarmonizationService:
     ) -> HarmonizedRow | None:
         city = museum.city
         record = self._pick_visitor_record(museum.visitor_records)
-        visitor_year = record.year
-        pop_est, is_extrapolated, slope, intercept = self._estimate_population(
-            museum.id, city.id, visitor_year, populations_by_city, fits
-        )
-        if pop_est is None:
+        estimate = self._estimate_population(museum.id, city.id, record.year, populations_by_city, fits)
+        if estimate.pop_est is None:
             return None
-        if pop_est <= 0:
-            _log.warning("population_est_nonpositive", museum_id=museum.id, city_id=city.id, pop_est=pop_est)
+        if estimate.pop_est <= 0:
+            _log.warning("population_est_nonpositive", museum_id=museum.id, city_id=city.id, pop_est=estimate.pop_est)
             return None
         return HarmonizedRow(
             museum_id=museum.id,
             museum_name=museum.name,
             city_id=city.id,
             city_name=city.name,
-            year=visitor_year,
+            year=record.year,
             visitors=record.visitors,
-            population_est=pop_est,
-            population_is_extrapolated=is_extrapolated,
-            population_fit_slope=slope,
-            population_fit_intercept=intercept,
+            population_est=estimate.pop_est,
+            population_is_extrapolated=estimate.is_extrapolated,
+            population_fit_slope=estimate.slope,
+            population_fit_intercept=estimate.intercept,
         )
 
     def _estimate_population(
@@ -150,18 +174,20 @@ class HarmonizationService:
         visitor_year: int,
         populations_by_city: dict[int, list[PopulationRecord]],
         fits: dict[int, CityFit],
-    ) -> tuple[float | None, bool, float | None, float | None]:
-        """Return (pop_est, is_extrapolated, slope, intercept) or (None, ...) to skip."""
+    ) -> _PopulationEstimate:
+        """Return a _PopulationEstimate; pop_est=None signals the museum should be skipped."""
         fit = fits.get(city_id)
         if fit is not None:
             pop_est = fit.slope * visitor_year + fit.intercept
-            is_ext = visitor_year < fit.min_year or visitor_year > fit.max_year
-            return pop_est, is_ext, fit.slope, fit.intercept
-
+            is_extrapolated = visitor_year < fit.min_year or visitor_year > fit.max_year
+            return _PopulationEstimate(
+                pop_est=pop_est, is_extrapolated=is_extrapolated, slope=fit.slope, intercept=fit.intercept
+            )
         city_records = populations_by_city.get(city_id, [])
         if len(city_records) == 1 and abs(city_records[0].year - visitor_year) <= 2:
-            return float(city_records[0].population), True, None, None
-
+            return _PopulationEstimate(
+                pop_est=float(city_records[0].population), is_extrapolated=True, slope=None, intercept=None
+            )
         _log.warning(
             "museum_skipped_no_population_fit",
             museum_id=museum_id,
@@ -169,4 +195,4 @@ class HarmonizationService:
             visitor_year=visitor_year,
             reason="no fit and no usable single-point fallback",
         )
-        return None, False, None, None
+        return _PopulationEstimate(pop_est=None, is_extrapolated=False, slope=None, intercept=None)

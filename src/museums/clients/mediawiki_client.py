@@ -10,6 +10,7 @@ import httpx
 import mwparserfromhell  # type: ignore[import-untyped]  # no stubs published
 
 from museums.config import Settings
+from museums.enums.external_source import ExternalSource
 from museums.exceptions import ExternalDataParseError, MediaWikiUnavailableError
 from museums.http_client import retry_policy
 
@@ -31,7 +32,7 @@ def _extract_wikitext(data: dict[str, Any]) -> str:
         return str(data["parse"]["wikitext"]["*"])
     except (KeyError, TypeError) as exc:
         raise ExternalDataParseError(
-            source="mediawiki",
+            source=ExternalSource.MEDIAWIKI,
             detail=f"missing parse.wikitext.*: {exc}",
         ) from exc
 
@@ -87,7 +88,7 @@ class MediaWikiClient:
         except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as exc:
             raise MediaWikiUnavailableError(f"MediaWiki unreachable: {exc}") from exc
         except json.JSONDecodeError as exc:
-            raise ExternalDataParseError(source="mediawiki", detail=f"invalid JSON: {exc}") from exc
+            raise ExternalDataParseError(source=ExternalSource.MEDIAWIKI, detail=f"invalid JSON: {exc}") from exc
         return _extract_wikitext(data)
 
     def _parse_entries(self, wikitext: str) -> list[MuseumListEntry]:
@@ -109,7 +110,7 @@ class MediaWikiClient:
                 entries.append(entry)
         if len(entries) < _MIN_EXPECTED_ENTRIES:
             raise ExternalDataParseError(
-                source="mediawiki",
+                source=ExternalSource.MEDIAWIKI,
                 detail=f"only {len(entries)} entries parsed — page layout may have changed",
             )
         return entries

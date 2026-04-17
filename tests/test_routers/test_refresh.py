@@ -10,7 +10,14 @@ import pytest
 from fastapi import FastAPI
 
 from museums.dependencies import get_ingestion_workflow
-from museums.exceptions import MediaWikiUnavailableError, RefreshCooldownError, WikidataUnavailableError
+from museums.enums.external_source import ExternalSource
+from museums.exceptions import (
+    ExternalDataParseError,
+    MediaWikiUnavailableError,
+    NotFoundError,
+    RefreshCooldownError,
+    WikidataUnavailableError,
+)
 from museums.workflows.ingestion_workflow import RefreshSummary
 
 _FIXED_SUMMARY = RefreshSummary(
@@ -108,3 +115,37 @@ async def test_refresh_with_force_param_calls_workflow_with_force_true(
     # Assert
     assert response.status_code == 202
     stub.refresh.assert_called_once_with(force=True)  # type: ignore[attr-defined]
+
+
+@pytest.mark.asyncio
+async def test_refresh_returns_404_when_not_found_error_raised(
+    test_app: FastAPI, app_client: httpx.AsyncClient
+) -> None:
+    # Arrange
+    test_app.dependency_overrides[get_ingestion_workflow] = lambda: _make_workflow_stub(
+        exc=NotFoundError("museum", 999)
+    )
+
+    # Act
+    response = await app_client.post("/refresh")
+
+    # Assert
+    assert response.status_code == 404
+    assert response.json()["code"] == "not_found"
+
+
+@pytest.mark.asyncio
+async def test_refresh_returns_502_when_external_parse_error_raised(
+    test_app: FastAPI, app_client: httpx.AsyncClient
+) -> None:
+    # Arrange
+    test_app.dependency_overrides[get_ingestion_workflow] = lambda: _make_workflow_stub(
+        exc=ExternalDataParseError(source=ExternalSource.WIKIDATA, detail="bad json")
+    )
+
+    # Act
+    response = await app_client.post("/refresh")
+
+    # Assert
+    assert response.status_code == 502
+    assert response.json()["code"] == "external_parse_error"

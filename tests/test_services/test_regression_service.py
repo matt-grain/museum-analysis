@@ -99,6 +99,18 @@ async def test_fit_populates_points_with_predicted_and_residual() -> None:
 
 
 @pytest.mark.asyncio
+async def test_fit_raises_insufficient_data_when_row_has_nonpositive_population() -> None:
+    # Arrange — 5 rows but one has population_est=0 (log(0) is undefined)
+    rows = _synthetic_rows(n=5)
+    rows[2] = _row(rows[2].museum_name, rows[2].city_name, pop=0.0, visitors=rows[2].visitors)
+    service = _make_service(rows)
+
+    # Act & Assert
+    with pytest.raises(InsufficientDataError):
+        await service.fit()
+
+
+@pytest.mark.asyncio
 async def test_fit_uses_log_transform_on_both_axes() -> None:
     """Verify log-log transform: a power-law relationship must yield high R².
 

@@ -11,6 +11,7 @@ import httpx
 
 from museums.clients.population_parsing import PopulationPoint, parse_populations
 from museums.config import Settings
+from museums.enums.external_source import ExternalSource
 from museums.exceptions import ExternalDataParseError, WikidataUnavailableError
 from museums.http_client import retry_policy
 
@@ -132,13 +133,22 @@ class WikidataClient:
         except (httpx.ConnectError, httpx.TimeoutException, httpx.HTTPStatusError) as exc:
             raise WikidataUnavailableError(f"Wikidata unreachable: {exc}") from exc
         except json.JSONDecodeError as exc:
-            raise ExternalDataParseError(source="wikidata", detail=f"invalid JSON: {exc}") from exc
+            raise ExternalDataParseError(source=ExternalSource.WIKIDATA, detail=f"invalid JSON: {exc}") from exc
         try:
             return list(data["results"]["bindings"])
         except (KeyError, TypeError) as exc:
-            raise ExternalDataParseError(source="wikidata", detail=f"missing results.bindings: {exc}") from exc
+            raise ExternalDataParseError(
+                source=ExternalSource.WIKIDATA, detail=f"missing results.bindings: {exc}"
+            ) from exc
 
     def _museum_query(self, titles: list[str]) -> str:
+        """Build the museum-enrichment SPARQL query.
+
+        SECURITY NOTE: `titles` are always sourced from the MediaWiki Action API
+        response (via MediaWikiClient.fetch_museum_list), never from user HTTP
+        input. We therefore accept the narrow injection surface here; quotes are
+        escaped via chr(34)/chr(92) as defense-in-depth.
+        """
         values = " ".join(f'"{t.replace(chr(34), chr(92) + chr(34))}"@en' for t in titles)
         threshold = self._settings.museum_visitor_threshold
         # For ?city we walk P131 transitively up to the first entity that is an

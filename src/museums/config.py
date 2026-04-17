@@ -7,6 +7,8 @@ from functools import lru_cache
 from pydantic import Field, HttpUrl, PostgresDsn
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from museums.enums.log_level import LogLevel
+
 
 class Settings(BaseSettings):
     """Application settings loaded from environment variables or .env file."""
@@ -28,7 +30,7 @@ class Settings(BaseSettings):
 
     museum_visitor_threshold: int = 2_000_000
 
-    log_level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR)$")
+    log_level: LogLevel = LogLevel.INFO
     user_agent: str = "MuseumsApp/0.1 (https://github.com/example/museums)"
 
 

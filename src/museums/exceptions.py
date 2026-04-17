@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from museums.enums.external_source import ExternalSource
+
 
 class DomainError(Exception):
     """Base class for all domain exceptions."""
@@ -27,7 +29,7 @@ class RefreshCooldownError(DomainError):
 class ExternalServiceError(DomainError):
     """Base class for external service failures."""
 
-    service_name: str = ""
+    service_name: ExternalSource
 
     def __init__(self, message: str) -> None:
         super().__init__(message)
@@ -36,19 +38,19 @@ class ExternalServiceError(DomainError):
 class MediaWikiUnavailableError(ExternalServiceError):
     """Raised when the MediaWiki API is unreachable or returns 5xx."""
 
-    service_name = "mediawiki"
+    service_name = ExternalSource.MEDIAWIKI
 
 
 class WikidataUnavailableError(ExternalServiceError):
     """Raised when the Wikidata SPARQL endpoint is unreachable or returns 5xx."""
 
-    service_name = "wikidata"
+    service_name = ExternalSource.WIKIDATA
 
 
 class ExternalDataParseError(DomainError):
     """Raised when an external API response has an unexpected shape."""
 
-    def __init__(self, source: str, detail: str) -> None:
+    def __init__(self, source: ExternalSource, detail: str) -> None:
         self.source = source
         self.detail = detail
         super().__init__(f"Failed to parse response from '{source}': {detail}")

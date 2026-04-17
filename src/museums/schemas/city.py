@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
+from museums.schemas.common import PaginationMeta
+
 
 class PopulationPointOut(BaseModel):
     year: int
@@ -20,3 +22,8 @@ class CityPopulationsOut(BaseModel):
     population_history: list[PopulationPointOut]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedCitiesOut(BaseModel):
+    items: list[CityPopulationsOut]
+    pagination: PaginationMeta

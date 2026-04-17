@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from museums.schemas.city import CityPopulationsOut, PopulationPointOut
+from museums.schemas.city import CityPopulationsOut, PaginatedCitiesOut, PopulationPointOut
+from museums.schemas.common import PaginationMeta
 
 if TYPE_CHECKING:
     from museums.repositories.city_repository import CityRepository
@@ -22,11 +23,14 @@ class CityQueryService:
         self._city_repo = city_repo
         self._population_repo = population_repo
 
-    async def list_with_populations(self) -> list[CityPopulationsOut]:
-        """Return all cities with their full population history as Pydantic DTOs."""
+    async def list_paginated(self, skip: int, limit: int) -> PaginatedCitiesOut:
+        """Return a paginated slice of cities with their population history."""
         cities = await self._city_repo.list_all()
         grouped = await self._population_repo.list_all_grouped()
-        return [
+        sorted_cities = sorted(cities, key=lambda c: c.name)
+        total = len(sorted_cities)
+        page = sorted_cities[skip : skip + limit]
+        items = [
             CityPopulationsOut(
                 id=city.id,
                 name=city.name,
@@ -34,5 +38,6 @@ class CityQueryService:
                 country=city.country,
                 population_history=[PopulationPointOut.model_validate(p) for p in grouped.get(city.id, [])],
             )
-            for city in cities
+            for city in page
         ]
+        return PaginatedCitiesOut(items=items, pagination=PaginationMeta(total=total, skip=skip, limit=limit))

@@ -41,3 +41,15 @@ async def test_list_museums_limit_caps_at_200(app_client: httpx.AsyncClient) -> 
 
     # Assert
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_list_museums_returns_empty_items_on_no_data(app_client: httpx.AsyncClient) -> None:
+    # Act — empty database
+    response = await app_client.get("/museums")
+
+    # Assert
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"] == []
+    assert body["pagination"]["total"] == 0

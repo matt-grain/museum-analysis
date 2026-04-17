@@ -13,12 +13,14 @@ from museums.clients.mediawiki_client import MediaWikiClient
 from museums.clients.wikidata_client import WikidataClient
 from museums.config import Settings, get_settings
 from museums.repositories.city_repository import CityRepository
+from museums.repositories.health_repository import HealthRepository
 from museums.repositories.museum_repository import MuseumRepository
 from museums.repositories.population_record_repository import PopulationRecordRepository
 from museums.repositories.refresh_state_repository import RefreshStateRepository
 from museums.repositories.visitor_record_repository import VisitorRecordRepository
 from museums.services.city_query_service import CityQueryService
 from museums.services.harmonization_service import HarmonizationService
+from museums.services.health_service import HealthService
 from museums.services.museum_query_service import MuseumQueryService
 from museums.services.regression_service import RegressionService
 from museums.workflows.ingestion_workflow import IngestionDeps, IngestionWorkflow
@@ -32,12 +34,8 @@ SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
-    """Yield an AsyncSession bound to app.state.engine."""
-    factory = async_sessionmaker(
-        bind=request.app.state.engine,
-        expire_on_commit=False,
-        class_=AsyncSession,
-    )
+    """Yield an AsyncSession from the lifespan-created session factory."""
+    factory: async_sessionmaker[AsyncSession] = request.app.state.session_factory
     async with factory() as session:
         yield session
 
@@ -80,11 +78,16 @@ async def get_refresh_repo(session: SessionDep) -> RefreshStateRepository:
     return RefreshStateRepository(session)
 
 
+async def get_health_repo(session: SessionDep) -> HealthRepository:
+    return HealthRepository(session)
+
+
 CityRepositoryDep = Annotated[CityRepository, Depends(get_city_repo)]
 MuseumRepositoryDep = Annotated[MuseumRepository, Depends(get_museum_repo)]
 VisitorRecordRepositoryDep = Annotated[VisitorRecordRepository, Depends(get_visitor_repo)]
 PopulationRecordRepositoryDep = Annotated[PopulationRecordRepository, Depends(get_population_repo)]
 RefreshStateRepositoryDep = Annotated[RefreshStateRepository, Depends(get_refresh_repo)]
+HealthRepoDep = Annotated[HealthRepository, Depends(get_health_repo)]
 
 
 # ── Clients ───────────────────────────────────────────────────────────────────
@@ -183,4 +186,9 @@ async def get_regression_service(
     return RegressionService(harmonization=harmonization)
 
 
+async def get_health_service(repo: HealthRepoDep) -> HealthService:
+    return HealthService(repo=repo)
+
+
 RegressionServiceDep = Annotated[RegressionService, Depends(get_regression_service)]
+HealthServiceDep = Annotated[HealthService, Depends(get_health_service)]

@@ -4,10 +4,20 @@ from __future__ import annotations
 
 import logging
 import sys
+from typing import Final
 
 import structlog
 
+from museums.enums.log_level import LogLevel
+
 _NOISY_LOGGERS = ("httpx", "sqlalchemy.engine", "uvicorn.access")
+
+_LEVELS: Final[dict[LogLevel, int]] = {
+    LogLevel.DEBUG: logging.DEBUG,
+    LogLevel.INFO: logging.INFO,
+    LogLevel.WARNING: logging.WARNING,
+    LogLevel.ERROR: logging.ERROR,
+}
 
 
 def _build_shared_processors() -> list[structlog.types.Processor]:
@@ -52,12 +62,12 @@ def _configure_stdlib(shared_processors: list[structlog.types.Processor], level:
         logging.getLogger(name).setLevel(logging.WARNING)
 
 
-def setup_logging(level: str) -> None:
+def setup_logging(level: LogLevel) -> None:
     """Configure structlog with JSON or console rendering.
 
     Call once from main.py lifespan on startup.
     """
-    log_level = getattr(logging, level.upper(), logging.INFO)
+    log_level = _LEVELS[level]
     shared_processors = _build_shared_processors()
     _configure_structlog(shared_processors)
     _configure_stdlib(shared_processors, log_level)

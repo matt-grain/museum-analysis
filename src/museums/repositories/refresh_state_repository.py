@@ -23,7 +23,6 @@ class RefreshStateRepository:
         if state is None:
             state = RefreshState(id=1)
             self._session.add(state)
-            await self._session.flush()
         return state
 
     async def mark_refreshed(self, museums: int, cities: int) -> RefreshState:
@@ -38,5 +37,4 @@ class RefreshStateRepository:
                 last_refresh_cities_count=cities,
             )
         )
-        await self._session.flush()
         return await self.get()

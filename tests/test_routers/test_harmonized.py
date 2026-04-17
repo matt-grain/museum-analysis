@@ -28,6 +28,18 @@ async def test_get_harmonized_returns_rows_when_data_present(
     # Assert
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 1
-    assert body[0]["museum_name"] == "Louvre"
-    assert body[0]["city_name"] == "Paris"
+    assert body["pagination"]["total"] == 1
+    assert body["items"][0]["museum_name"] == "Louvre"
+    assert body["items"][0]["city_name"] == "Paris"
+
+
+@pytest.mark.asyncio
+async def test_get_harmonized_returns_empty_items_when_no_data(app_client: httpx.AsyncClient) -> None:
+    # Act
+    response = await app_client.get("/harmonized")
+
+    # Assert
+    assert response.status_code == 200
+    body = response.json()
+    assert body["items"] == []
+    assert body["pagination"]["total"] == 0

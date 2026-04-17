@@ -1,4 +1,4 @@
-## IVADO LABS Homework
+## Homework
 
 A new world organization has just been created. 
 It includes all the museum management committees that have more than 2,000,000 visitors annually.  
@@ -20,20 +20,3 @@ Deliverables:
 
 You will be evaluated not only on how your code works but also on the rationale for the choices you make. 
 
-## Matt's analysis - to be challenged
-
-Target: docker compose with containers:
-- database to store raw data: museums and associated characteristics, cities with population where museums are located
-- python FastAPI container wit h API to:
-  - retrieve/refresh the data 
-  - process the data
-  - generate "small linear regression ML algorithm" model to correlate the tourist attendance at their museums with the population of the respective cities. 
-  - store results
-- python notebook server container to run the notebook which will call the FastAPI container  
-
-Questions:
-- what kind of database to store the raw data and correlation data?
-- which source to use to find cities population?
-- which Wikipedia API? This one https://www.mediawiki.org/wiki/Wikimedia_REST_API ?
-
-- "small, common and harmonized database" to extract features, what kind of processing to do?

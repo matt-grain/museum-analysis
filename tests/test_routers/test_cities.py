@@ -30,7 +30,7 @@ async def test_list_city_populations_returns_series_per_city(
     # Assert
     assert response.status_code == 200
     body = response.json()
-    assert len(body) == 2
-    by_name = {c["name"]: c for c in body}
+    assert body["pagination"]["total"] == 2
+    by_name = {c["name"]: c for c in body["items"]}
     assert len(by_name["Paris"]["population_history"]) == 3
     assert len(by_name["London"]["population_history"]) == 3
