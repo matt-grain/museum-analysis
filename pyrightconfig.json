@@ -2,7 +2,7 @@
   "pythonVersion": "3.13",
   "typeCheckingMode": "strict",
   "reportMissingTypeStubs": false,
-  "venvPath": "C:/Projects/Interviews",
+  "venvPath": ".",
   "venv": ".venv",
   "include": ["src", "tests", "tools"],
   "exclude": ["prototype", "notebook", "**/__pycache__", ".venv", "alembic/versions"]
