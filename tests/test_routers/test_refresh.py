@@ -149,3 +149,39 @@ async def test_refresh_returns_502_when_external_parse_error_raised(
     # Assert
     assert response.status_code == 502
     assert response.json()["code"] == "external_parse_error"
+
+
+@pytest.mark.asyncio
+async def test_refresh_returns_401_when_api_key_set_and_header_missing(
+    test_app: FastAPI, app_client: httpx.AsyncClient
+) -> None:
+    # Arrange — enable the API key gate by overriding Settings
+    from museums.config import Settings
+    from museums.dependencies import get_settings
+
+    test_app.dependency_overrides[get_settings] = lambda: Settings(refresh_api_key="secret-123")  # type: ignore[call-arg]
+
+    # Act — no X-API-Key header
+    response = await app_client.post("/refresh")
+
+    # Assert
+    assert response.status_code == 401
+    assert "X-API-Key" in response.json()["detail"]
+
+
+@pytest.mark.asyncio
+async def test_refresh_returns_202_when_api_key_set_and_header_matches(
+    test_app: FastAPI, app_client: httpx.AsyncClient
+) -> None:
+    # Arrange
+    from museums.config import Settings
+    from museums.dependencies import get_settings
+
+    test_app.dependency_overrides[get_settings] = lambda: Settings(refresh_api_key="secret-123")  # type: ignore[call-arg]
+    test_app.dependency_overrides[get_ingestion_workflow] = lambda: _make_workflow_stub()
+
+    # Act
+    response = await app_client.post("/refresh", headers={"X-API-Key": "secret-123"})
+
+    # Assert
+    assert response.status_code == 202

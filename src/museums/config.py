@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     log_level: LogLevel = LogLevel.INFO
     user_agent: str = "MuseumsApp/0.1 (https://github.com/example/museums)"
 
+    # Optional API key on POST /refresh. When unset (the default for local dev
+    # + docker compose), refresh is open — callers don't send a header. When
+    # set via MUSEUMS_REFRESH_API_KEY env-var, clients must send a matching
+    # X-API-Key header or the endpoint returns 401. This is the only auth
+    # gate; see README's "Production Hardening Checklist" for everything else
+    # that would be needed for a real public deployment.
+    refresh_api_key: str | None = None
+
 
 @lru_cache
 def get_settings() -> Settings:
