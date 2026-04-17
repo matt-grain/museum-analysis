@@ -204,9 +204,7 @@ async def generate_report() -> str:
     )
     top = sorted(reg["points"], key=lambda p: abs(p["residual"]), reverse=True)[:5]
     for p in top:
-        lines.append(
-            f"- **{p['museum_name']}** ({p['city_name']}, {p['year']}): residual {p['residual']:+.2f}"
-        )
+        lines.append(f"- **{p['museum_name']}** ({p['city_name']}, {p['year']}): residual {p['residual']:+.2f}")
 
     return "\n".join(lines)
 
@@ -223,7 +221,9 @@ def main() -> None:
         port = int(sys.argv[idx + 1]) if idx + 1 < len(sys.argv) else None
 
     if transport == "http":
-        mcp.run(transport="http", port=port or 8001)
+        # host=0.0.0.0 so the container can be reached from the host;
+        # fastmcp defaults to 127.0.0.1 which doesn't work across the Docker bridge.
+        mcp.run(transport="http", host="0.0.0.0", port=port or 8001)  # noqa: S104
     else:
         mcp.run()
 

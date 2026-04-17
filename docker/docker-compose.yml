@@ -39,5 +39,21 @@ services:
     environment:
       MUSEUMS_API_URL: http://api:8000
 
+  # Easter-egg: FastMCP server exposing the Museums API as MCP tools for
+  # Claude Desktop / mcp-remote. Reuses the api image (fastmcp is in this
+  # branch's pyproject.toml). Not on main.
+  mcp:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.api
+    depends_on:
+      - api
+    ports:
+      - "8001:8001"
+    environment:
+      MUSEUMS_API_URL: http://api:8000
+    command: >
+      uv run python -m museums.mcp_server --transport http --port 8001
+
 volumes:
   museums_pgdata:
