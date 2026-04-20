@@ -17,6 +17,37 @@ from museums.http_client import retry_policy
 
 _SPARQL_ACCEPT = "application/sparql-results+json"
 
+# Wikidata "city-like" classes accepted when walking P131* up from a museum.
+#   - Q515    "city"                — e.g. Paris (Q90), Madrid (Q2807).
+#   - Q159313 "urban agglomeration" — e.g. Greater London (Q23306). Required
+#     because London boroughs' P131 chain never passes through Q515; they walk
+#     up to Greater London, typed as urban agglomeration.
+_CITY_CLASS_VALUES = "wd:Q515 wd:Q159313"
+
+# Enrichment is unfiltered: Wikipedia's table is the source of truth for
+# inclusion (the 2M threshold is applied client-side against the scraped
+# ``visitors_count``). Wikidata supplies city/country + a visitor time-series
+# when available; missing P1174 is normal and gets filled in from Wikipedia's
+# single data point by the merge step in the workflow.
+_MUSEUM_QUERY_TEMPLATE = (
+    "SELECT ?museum ?museumLabel ?city ?cityLabel ?country ?countryLabel ?title ?visitors ?year WHERE {{"
+    " VALUES ?title {{ {values} }}"
+    " ?article schema:about ?museum ; schema:isPartOf <https://en.wikipedia.org/> ; schema:name ?title ."
+    " OPTIONAL {{ ?museum wdt:P17 ?country . }}"
+    " OPTIONAL {{"
+    "  ?museum p:P1174 ?vStatement . ?vStatement ps:P1174 ?visitors ."
+    "  OPTIONAL {{ ?vStatement pq:P585 ?date . BIND(YEAR(?date) AS ?year) }}"
+    "  FILTER(!BOUND(?year) || ?year >= 2000)"
+    " }}"
+    " OPTIONAL {{"
+    "  ?museum wdt:P131* ?city ."
+    "  VALUES ?cityType {{ {city_classes} }}"
+    "  ?city wdt:P31/wdt:P279* ?cityType ."
+    " }}"
+    " OPTIONAL {{ ?museum wdt:P159 ?city }}"
+    ' SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" }} }}'
+)
+
 
 @dataclass(frozen=True)
 class VisitorPoint:
@@ -28,10 +59,15 @@ class VisitorPoint:
 
 @dataclass(frozen=True)
 class MuseumEnrichment:
-    """Structured Wikidata data for a single museum."""
+    """Structured enrichment for a single museum.
+
+    ``museum_qid`` is nullable because Wikipedia-derived fallback rows (museums
+    with no P1174 statement on Wikidata) have no linked Wikidata item that we
+    want to persist — the museum is stored by name, not by QID, in that case.
+    """
 
     wikipedia_title: str
-    museum_qid: str
+    museum_qid: str | None
     museum_label: str
     city_qid: str | None
     city_label: str | None
@@ -145,31 +181,11 @@ class WikidataClient:
         """Build the museum-enrichment SPARQL query.
 
         SECURITY NOTE: `titles` are always sourced from the MediaWiki Action API
-        response (via MediaWikiClient.fetch_museum_list), never from user HTTP
-        input. We therefore accept the narrow injection surface here; quotes are
-        escaped via chr(34)/chr(92) as defense-in-depth.
+        (via MediaWikiClient.fetch_museum_list), never user HTTP input. Quotes
+        are escaped via chr(34)/chr(92) as defense-in-depth.
         """
         values = " ".join(f'"{t.replace(chr(34), chr(92) + chr(34))}"@en' for t in titles)
-        threshold = self._settings.museum_visitor_threshold
-        # For ?city we walk P131 transitively up to the first entity that is an
-        # instance of "city" (Q515) or any subclass, so museums in Paris resolve
-        # to Paris (Q90) instead of the 7th arrondissement (Q259463).
-        # P159 (headquarters) is a fallback.
-        return (
-            f"SELECT ?museum ?museumLabel ?city ?cityLabel ?country ?countryLabel ?title ?visitors ?year WHERE {{"
-            f" VALUES ?title {{ {values} }}"
-            f" ?article schema:about ?museum ; schema:isPartOf <https://en.wikipedia.org/> ; schema:name ?title ."
-            f" ?museum p:P1174 ?vStatement . ?vStatement ps:P1174 ?visitors ."
-            f" OPTIONAL {{ ?vStatement pq:P585 ?date . BIND(YEAR(?date) AS ?year) }}"
-            f" FILTER(?visitors > {threshold}) FILTER(!BOUND(?year) || ?year >= 2000)"
-            f" ?museum wdt:P17 ?country ."
-            f" OPTIONAL {{"
-            f"  ?museum wdt:P131* ?city ."
-            f"  ?city wdt:P31/wdt:P279* wd:Q515 ."
-            f" }}"
-            f" OPTIONAL {{ ?museum wdt:P159 ?city }}"
-            f' SERVICE wikibase:label {{ bd:serviceParam wikibase:language "en" }} }}'
-        )
+        return _MUSEUM_QUERY_TEMPLATE.format(values=values, city_classes=_CITY_CLASS_VALUES)
 
     @staticmethod
     def _population_query(qids: list[str]) -> str:
