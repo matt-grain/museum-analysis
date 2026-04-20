@@ -18,6 +18,7 @@ from museums.repositories.museum_repository import MuseumRepository
 from museums.repositories.population_record_repository import PopulationRecordRepository
 from museums.repositories.refresh_state_repository import RefreshStateRepository
 from museums.repositories.visitor_record_repository import VisitorRecordRepository
+from museums.workflows.fallback_enrichment import merge_enrichments
 
 _log = structlog.get_logger("ingestion")
 
@@ -94,9 +95,21 @@ class IngestionWorkflow:
         log.info("fetching_museum_list")
         entries = await self._mediawiki.fetch_museum_list()
         log.info("museum_list_fetched", count=len(entries))
+
+        # Wikipedia is the source of truth for inclusion; Wikidata is purely
+        # enrichment. Filter the scraped visitor count against the configured
+        # threshold before hitting SPARQL so we only enrich museums that will
+        # actually be persisted.
+        threshold = self._settings.museum_visitor_threshold
+        filtered = [e for e in entries if e.visitors_count is not None and e.visitors_count > threshold]
+        log.info("wikipedia_threshold_applied", kept=len(filtered), total=len(entries), threshold=threshold)
+
         log.info("fetching_museum_enrichment")
-        enrichments = await self._wikidata.fetch_museum_enrichment([e.wikipedia_title for e in entries])
-        log.info("museum_enrichment_fetched", count=len(enrichments))
+        wd_enrichments = await self._wikidata.fetch_museum_enrichment([e.wikipedia_title for e in filtered])
+        log.info("museum_enrichment_fetched", count=len(wd_enrichments))
+
+        enrichments = await merge_enrichments(filtered, wd_enrichments, self._mediawiki, log)
+
         unique_city_qids = list({e.city_qid for e in enrichments if e.city_qid})
         log.info("fetching_city_populations", city_count=len(unique_city_qids))
         populations = await self._wikidata.fetch_city_populations(unique_city_qids)
