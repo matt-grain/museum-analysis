@@ -76,9 +76,23 @@ async def build_population_record(
     return record
 
 
-def make_museum_list_entry(title: str = "Louvre", display_name: str | None = None) -> MuseumListEntry:
-    """Build a MuseumListEntry without touching the database."""
-    return MuseumListEntry(wikipedia_title=title, display_name=display_name or title)
+def make_museum_list_entry(
+    title: str = "Louvre",
+    display_name: str | None = None,
+    visitors_count: int | None = 8_900_000,
+    visitors_year: int | None = 2023,
+) -> MuseumListEntry:
+    """Build a MuseumListEntry without touching the database.
+
+    Default ``visitors_count`` is well above ``Settings.museum_visitor_threshold``
+    so entries survive the ingestion workflow's Wikipedia-side threshold filter.
+    """
+    return MuseumListEntry(
+        wikipedia_title=title,
+        display_name=display_name or title,
+        visitors_count=visitors_count,
+        visitors_year=visitors_year,
+    )
 
 
 def make_museum_enrichment(
