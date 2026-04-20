@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import socket
 from collections.abc import AsyncGenerator, Callable
+from urllib.parse import urlparse
 
 import httpx
 import pytest
@@ -24,6 +26,23 @@ _TRUNCATE_SQL = text(
 )
 
 
+def _postgres_reachable(db_url: str, timeout: float = 1.0) -> bool:
+    """TCP-probe the Postgres host:port from a SQLAlchemy URL.
+
+    Returns False on any socket error so DB-backed tests can be skipped cleanly
+    when the user hasn't exposed port 5432 (e.g. docker-compose with the db
+    service kept internal to the compose network).
+    """
+    parsed = urlparse(db_url.replace("postgresql+asyncpg://", "postgresql://"))
+    host = parsed.hostname or "localhost"
+    port = parsed.port or 5432
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
 @pytest.fixture
 def settings() -> Settings:
     """Return a Settings instance with test-friendly overrides."""
@@ -36,7 +55,17 @@ def settings() -> Settings:
 
 @pytest_asyncio.fixture(scope="session")
 async def async_engine() -> AsyncGenerator[AsyncEngine]:
-    """Session-scoped async engine pointing at museums_test."""
+    """Session-scoped async engine pointing at museums_test.
+
+    Skips (not errors) any dependent test when Postgres is unreachable, so that
+    client/service unit tests can still run without a local docker-compose up.
+    """
+    if not _postgres_reachable(_TEST_DB_URL):
+        pytest.skip(
+            f"Postgres unreachable at {_TEST_DB_URL} — start docker-compose db "
+            "(wsl docker compose -f docker/docker-compose.yml up -d db) "
+            "and publish port 5432 to the host.",
+        )
     engine = create_async_engine(_TEST_DB_URL, echo=False)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
